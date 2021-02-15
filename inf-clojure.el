@@ -301,7 +301,7 @@ TIMEOUT, the `accept-process-output' timeout."
 (defun inf-clojure-eval-region (start end)
   "Send the current region delimited by START/END to the inferior Clojure process."
   (interactive "r")
-  (inf-clojure-send-region start end))
+  (inf-clojure-comint-send-region start end))
 
 (defun inf-clojure-load-file (file-name)
   "Load a Clojure file defined by its FILE-NAME into the inferior process."
@@ -403,4 +403,4 @@ The following commands are available:
 
 (provide 'inf-clojure)
 
-;;; inf-clojure-alt.el ends here
+;;; inf-clojure.el ends here
