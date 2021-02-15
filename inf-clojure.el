@@ -130,7 +130,7 @@ considered a Clojure source file by `inf-clojure-load-file'."
 (defun inf-clojure-proc-parse-output ()
   "Parse process output list to string."
   (let ((text (mapconcat (lambda (str) str)
-                           (reverse inf-clojure-proc-output-list) "")))
+                         (reverse inf-clojure-proc-output-list) "")))
     ;; cache the filtered last text output
     (setq inf-clojure-last-text-output
           (dolist (regexp `(,inf-clojure-filter-regexp
@@ -142,26 +142,27 @@ considered a Clojure source file by `inf-clojure-load-file'."
 (defun inf-clojure-display-output ()
   "Parse and display the comint output."
   (let ((text (inf-clojure-proc-parse-output)))
-    (message "%s" text)))
+    (message " %s" text)))
 
 (defun inf-clojure-proc-wait (proc timeout)
   "Wait for the PROC finishes or leave reaches the TIMEOUT (in seconds)."
-  (while (not (string-match-p
-               comint-prompt-regexp
-               (car inf-clojure-proc-output-list)))
-    ;; accept more output
-    (accept-process-output proc timeout)
-    ;; wait a little bit
-    (sleep-for nil 100))
-  ;; finally display the text output
-  (inf-clojure-display-output))
+  (let ((string (car inf-clojure-proc-output-list)))
+    ;; wait loop
+    (while (not (string-match-p comint-prompt-regexp string))
+      ;; accept more output
+      (accept-process-output proc timeout)
+      ;; wait a little bit
+      (sleep-for nil 100))
+    ;; finally display the text output
+    (inf-clojure-display-output)))
 
 (defun inf-clojure-comint-preoutput-filter (string)
   "Return the output STRING."
-  ;; save the output
-  (push string inf-clojure-proc-output-list)
-  ;; return string to the comint buffer (implicit)
-  string)
+  (let ((string (if (stringp string) string "")))
+    ;; save the output
+    (push string inf-clojure-proc-output-list)
+    ;; return string to the comint buffer (implicit)
+    string))
 
 (defun inf-clojure-comint-send (send-func &optional timeout &rest args)
   "Send ARGS (string or region) using the chosen SEND-FUNC.
@@ -294,9 +295,9 @@ TIMEOUT, the `accept-process-output' timeout."
   "Send the current buffer to the inferior Clojure process."
   (interactive)
   (save-excursion (widen)
-    (let ((case-fold-search t))
-      (inf-clojure-comint-send-region (point-min)
-                                      (point-max)))))
+                  (let ((case-fold-search t))
+                    (inf-clojure-comint-send-region (point-min)
+                                                    (point-max)))))
 
 (defun inf-clojure-eval-region (start end)
   "Send the current region delimited by START/END to the inferior Clojure process."
