@@ -72,7 +72,7 @@
   :group 'inf-clojure
   :type 'regexp)
 
-(defcustom inf-clojure-proc-timeout 2
+(defcustom inf-clojure-proc-timeout 4
   "The `accept-process-output' timeout in seconds."
   :group 'inf-clojure
   :type 'integer)
@@ -100,6 +100,15 @@ If it's loaded into a buffer that is in one of these major modes, it's
 considered a Clojure source file by `inf-clojure-load-file'."
   :group 'inf-clojure
   :type '(repeat function))
+
+(defvar inf-clojure-ops-alist
+  `((load . "(clojure.core/load-file \"%s\")")
+    (doc . "(clojure.repl/doc %s)")
+    (source . "(clojure.repl/source %s)")
+    (apropos . "(doseq [var (sort (clojure.repl/apropos \"%s\"))] (println (str var)))")
+    (ns-vars . "(clojure.repl/dir %s)")
+    (set-ns . "(clojure.core/in-ns '%s)"))
+  "Operation associative list: (OP-KEY . OP-FMT).")
 
 (defvar inf-clojure-version "0.01 Alpha"
   "Current version string.")
@@ -142,13 +151,14 @@ considered a Clojure source file by `inf-clojure-load-file'."
 (defun inf-clojure-display-output ()
   "Parse and display the comint output."
   (let ((text (inf-clojure-proc-parse-output)))
-    (message " %s" text)))
+    (message "=> %s" text)))
 
 (defun inf-clojure-proc-wait (proc timeout)
-  "Wait for the PROC finishes or leave reaches the TIMEOUT (in seconds)."
+  "Wait for the PROC output, leave if reaches the TIMEOUT."
   (let ((string (car inf-clojure-proc-output-list)))
-    ;; wait loop
-    (while (not (string-match-p comint-prompt-regexp string))
+    ;; wait loop conditions
+    (while (and (stringp string)
+                (not (string-match-p comint-prompt-regexp string)))
       ;; accept more output
       (accept-process-output proc timeout)
       ;; wait a little bit
@@ -179,16 +189,19 @@ TIMEOUT, the `accept-process-output' timeout."
       (apply 'funcall send-func proc args)
       ;; always send a new line
       (comint-send-string proc "\n")
-      ;; accept more output
+      ;; accept process output
       (accept-process-output proc timeout)
       ;; wait for the process finishes
       (inf-clojure-proc-wait proc timeout))))
 
-(defun inf-clojure-comint-send-string (string &optional timeout)
+(defun inf-clojure-comint-send-string (string &optional op-key timeout)
   "Send STRING to the current inferior process.
+Format the string selecting the right format using the OP-KEY.
 TIMEOUT, the `accept-process-output' timeout."
-  ;; send string
-  (inf-clojure-comint-send #'comint-send-string timeout string))
+  (let ((string (if (not op-key) string
+                  (format (cdr (assoc op-key inf-clojure-ops-alist)) string))))
+    ;; send string
+    (inf-clojure-comint-send #'comint-send-string timeout string)))
 
 (defun inf-clojure-comint-send-region (start end &optional timeout)
   "Send region delimited bu START/END to the inferior process.
@@ -212,7 +225,7 @@ TIMEOUT, the `accept-process-output' timeout."
 
 (defun inf-clojure-comint-setup ()
   "Helper function to setup `comint-mode' related variables."
-  (setq comint-process-echoes nil
+  (setq comint-process-echoes t
         comint-input-ignoredups nil
         comint-use-prompt-regexp t))
 
@@ -239,6 +252,8 @@ TIMEOUT, the `accept-process-output' timeout."
       (error "[inf-clojure]: make-comint fails"))
     ;; check comint process
     (comint-check-proc buffer)
+    ;; set process sentinel
+    (set-process-sentinel (get-buffer-process buffer) 'inf-clojure-proc-sentinel)
     ;; save current process buffer
     (setq inf-clojure-proc-buffer buffer)
     ;; start info-clojure-mode (comint related) and maybe jump to the buffer
@@ -270,8 +285,8 @@ TIMEOUT, the `accept-process-output' timeout."
   (interactive)
   (message " %s" inf-clojure-last-text-output))
 
-(defun inf-clojure-send-definition ()
-  "Send definition to the inferior Clojure process."
+(defun inf-clojure-eval-defn ()
+  "Send 'defn' to the inferior Clojure process."
   (interactive)
   (save-excursion
     (end-of-defun)
@@ -279,7 +294,17 @@ TIMEOUT, the `accept-process-output' timeout."
       (beginning-of-defun)
       (inf-clojure-comint-send-region (point) end))))
 
-(defun inf-clojure-eval-expression (string)
+(defun inf-clojure-read-thing (&optional prompt)
+  "Return `thing-at-point' (string) or read it.
+If PROMPT is non-nil use it as the reading prompt."
+  (let* ((thing (thing-at-point 'symbol t))
+         (fmt (if (not thing) "%s: " "%s (%s): "))
+         (prompt (format fmt (or prompt "String: ") thing)))
+    ;; return the read list string
+    (list (substring-no-properties
+           (read-string prompt nil nil thing)))))
+
+(defun inf-clojure-eval-sexp (string)
   "Eval STRING sexp in the current inferior Clojure process."
   (interactive (list (read-string "Eval: ")))
   ;; eval string s-expression
@@ -317,8 +342,42 @@ TIMEOUT, the `accept-process-output' timeout."
         (cons (file-name-directory file-name)
               (file-name-nondirectory file-name)))
   ;; load file
-  (inf-clojure-comint-send-string
-   (format "(clojure.core/load-file \"%s\")" file-name)))
+  (inf-clojure-comint-send-string file-name 'load))
+
+(defun inf-clojure-describe (string)
+  "Invoke (doc STRING) operation."
+  ;; map string function parameter
+  (interactive (inf-clojure-read-thing "Describe"))
+  ;; send doc operation
+  (inf-clojure-comint-send-string string 'doc))
+
+(defun inf-clojure-source (string)
+  "Invoke Clojure (source STRING) operation."
+  ;; map string function parameter
+  (interactive (inf-clojure-read-thing "Source for"))
+  ;; send source operation
+  (inf-clojure-comint-send-string string 'source))
+
+(defun inf-clojure-apropos (string)
+  "Invoke Clojure (apropos STRING) operation."
+  ;; map string function parameter
+  (interactive (inf-clojure-read-thing "Search for"))
+  ;; send apropos operation
+  (inf-clojure-comint-send-string string 'apropos))
+
+(defun inf-clojure-ns-vars (nsname)
+  "Invoke Clojure (dir NSNAME) operation."
+  ;; map string function parameter
+  (interactive (inf-clojure-read-thing "Namespace"))
+  ;; send apropos operation
+  (inf-clojure-comint-send-string nsname 'ns-vars))
+
+(defun inf-clojure-set-ns (name)
+  "Invoke Clojure (in-ns NAME) operation."
+  ;; map string function parameter
+  (interactive (inf-clojure-read-thing "Name"))
+  ;; send apropos operation
+  (inf-clojure-comint-send-string name 'set-ns))
 
 (defun inf-clojure-syntax-table ()
   "Clojure-mode syntax table copy."
@@ -344,10 +403,10 @@ TIMEOUT, the `accept-process-output' timeout."
 
 (defvar inf-clojure-minor-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-M-x")   #'inf-clojure-send-definition) ; Gnu convention
+    (define-key map (kbd "C-M-x")   #'inf-clojure-eval-defn) ; Gnu convention
     (define-key map (kbd "C-x C-e") #'inf-clojure-eval-last-sexp)  ; Gnu convention
     (define-key map (kbd "C-c C-e") #'inf-clojure-eval-last-sexp)
-    (define-key map (kbd "C-c C-c") #'inf-clojure-send-definition) ; SLIME/CIDER style
+    (define-key map (kbd "C-c C-c") #'inf-clojure-eval-defn) ; SLIME/CIDER style
     (define-key map (kbd "C-c C-b") #'inf-clojure-eval-buffer)
     (define-key map (kbd "C-c C-r") #'inf-clojure-eval-region)
     (define-key map (kbd "C-c C-l") #'inf-clojure-load-file)
@@ -357,7 +416,7 @@ TIMEOUT, the `accept-process-output' timeout."
       '("Inf-Clojure"
         ["Eval region" inf-clojure-eval-region t]
         ["Eval buffer" inf-clojure-eval-buffer t]
-        ["Eval defn" inf-clojure-send-definition t]
+        ["Eval function" inf-clojure-eval-defn t]
         ["Eval last sexp" inf-clojure-eval-last-sexp t]
         "--"
         ["Load file..." inf-clojure-load-file t]
