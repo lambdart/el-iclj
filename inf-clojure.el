@@ -102,12 +102,13 @@ considered a Clojure source file by `inf-clojure-load-file'."
   :type '(repeat function))
 
 (defvar inf-clojure-ops-alist
-  `((load . "(clojure.core/load-file \"%s\")")
-    (doc . "(clojure.repl/doc %s)")
-    (source . "(clojure.repl/source %s)")
-    (apropos . "(doseq [var (sort (clojure.repl/apropos \"%s\"))] (println (str var)))")
-    (ns-vars . "(clojure.repl/dir %s)")
-    (set-ns . "(clojure.core/in-ns '%s)"))
+  `((load-file . "(clojure.core/load-file \"%s\")")
+    (doc       . "(clojure.repl/doc %s)")
+    (find-doc  . "(clojure.repl/find-doc \"%s\")")
+    (source    . "(clojure.repl/source %s)")
+    (apropos   . "(doseq [var (sort (clojure.repl/apropos \"%s\"))] (println (str var)))")
+    (ns-vars   . "(clojure.repl/dir %s)")
+    (set-ns    . "(clojure.core/in-ns '%s)"))
   "Operation associative list: (OP-KEY . OP-FMT).")
 
 (defvar inf-clojure-version "0.01 Alpha"
@@ -156,7 +157,7 @@ considered a Clojure source file by `inf-clojure-load-file'."
 (defun inf-clojure-proc-wait (proc timeout)
   "Wait for the PROC output, leave if reaches the TIMEOUT."
   (let ((string (car inf-clojure-proc-output-list)))
-    ;; wait loop conditions
+    ;; wait loop
     (while (and (stringp string)
                 (not (string-match-p comint-prompt-regexp string)))
       ;; accept more output
@@ -294,19 +295,20 @@ TIMEOUT, the `accept-process-output' timeout."
       (beginning-of-defun)
       (inf-clojure-comint-send-region (point) end))))
 
-(defun inf-clojure-read-thing (&optional prompt)
+(defun inf-clojure-read-thing (&optional prompt thing)
   "Return `thing-at-point' (string) or read it.
-If PROMPT is non-nil use it as the reading prompt."
-  (let* ((thing (thing-at-point 'symbol t))
-         (fmt (if (not thing) "%s: " "%s (%s): "))
-         (prompt (format fmt (or prompt "String: ") thing)))
+If PROMPT is non-nil use it as the read prompt.
+If THING  is non-nil use it as the `thing-at-point' parameter,
+default: 'symbol."
+  (let* ((str (thing-at-point (or thing 'symbol) t))
+         (fmt (if (not str) "%s: " "%s [%s]: "))
+         (prompt (format fmt (or prompt "Str: ") str)))
     ;; return the read list string
-    (list (substring-no-properties
-           (read-string prompt nil nil thing)))))
+    (list (read-string prompt nil nil str))))
 
-(defun inf-clojure-eval-sexp (string)
+(defun inf-clojure-eval-expression (string)
   "Eval STRING sexp in the current inferior Clojure process."
-  (interactive (list (read-string "Eval: ")))
+  (interactive (inf-clojure-read-thing "Eval" 'sexp))
   ;; eval string s-expression
   (inf-clojure-comint-send-string string))
 
@@ -331,7 +333,8 @@ If PROMPT is non-nil use it as the reading prompt."
 
 (defun inf-clojure-load-file (file-name)
   "Load a Clojure file defined by its FILE-NAME into the inferior process."
-  (interactive (comint-get-source "Clojure file: " inf-clojure-prev-l/c-dir/file
+  (interactive (comint-get-source "Clojure file: "
+                                  inf-clojure-prev-l/c-dir/file
                                   inf-clojure-source-modes t))
   ;; if the file is loaded into a buffer, and the buffer is modified, the user
   ;; is queried to see if he wants to save the buffer before proceeding with
@@ -342,28 +345,35 @@ If PROMPT is non-nil use it as the reading prompt."
         (cons (file-name-directory file-name)
               (file-name-nondirectory file-name)))
   ;; load file
-  (inf-clojure-comint-send-string file-name 'load))
+  (inf-clojure-comint-send-string file-name 'load-file))
 
-(defun inf-clojure-describe (string)
-  "Invoke (doc STRING) operation."
+(defun inf-clojure-doc (name)
+  "Invoke (doc name) operation."
   ;; map string function parameter
-  (interactive (inf-clojure-read-thing "Describe"))
+  (interactive (inf-clojure-read-thing "Doc"))
   ;; send doc operation
-  (inf-clojure-comint-send-string string 'doc))
+  (inf-clojure-comint-send-string name 'doc))
 
-(defun inf-clojure-source (string)
-  "Invoke Clojure (source STRING) operation."
+(defun inf-clojure-find-doc (str-or-regex)
+  "Invoke (find-doc STR-OR-REGEX) operation."
+  ;; map string function parameter
+  (interactive (inf-clojure-read-thing "Find-doc"))
+  ;; send doc operation
+  (inf-clojure-comint-send-string str-or-regex 'find-doc))
+
+(defun inf-clojure-source (symbol)
+  "Invoke Clojure (source SYMBOL) operation."
   ;; map string function parameter
   (interactive (inf-clojure-read-thing "Source for"))
   ;; send source operation
-  (inf-clojure-comint-send-string string 'source))
+  (inf-clojure-comint-send-string symbol 'source))
 
-(defun inf-clojure-apropos (string)
-  "Invoke Clojure (apropos STRING) operation."
+(defun inf-clojure-apropos (str-or-regex)
+  "Invoke Clojure (apropos STR-OR-REGEX) operation."
   ;; map string function parameter
   (interactive (inf-clojure-read-thing "Search for"))
   ;; send apropos operation
-  (inf-clojure-comint-send-string string 'apropos))
+  (inf-clojure-comint-send-string str-or-regex 'apropos))
 
 (defun inf-clojure-ns-vars (nsname)
   "Invoke Clojure (dir NSNAME) operation."
