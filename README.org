@@ -1,0 +1,112 @@
+#+AUTHOR: lambdart
+#+EMAIL: lambdart@protonmail.com
+#+KEYWORDS: readme, emacs, elisp, autoloads, elisp, package
+#+LANGUAGE: en
+#+PROPERTY: header-args :tangle no
+
+* Introduction
+
+  From Masteringemacs:
+
+  One of the hallmarks of Emacs is its ability to interface with
+  external processes and add to the user experience with the full
+  coterie of Emacs functionality like syntax highlighting, macros,
+  command history, and so on. This functionality has been in Emacs
+  since time immemorial, yet few people make their own command
+  interpreters – also known as comint – in Emacs, fearing that it is
+  either really difficult or not possible.
+
+  It’s not surprising people feel this way when you consider how
+  woefully underdocumented this functionality is; the few, scattered
+  references to comint “mode” reveal little, and as a hacker you are
+  forced to use the source, Luke.
+
+  - https://www.masteringemacs.org/article/comint-writing-command-interpreter
+
+  So, this is a simple Clojure *REPL* support for *Emacs* that can be
+  used to help edit/investigate any Clojure source code from the
+  associated buffer (or not).
+
+* Goal
+
+  Be a lightweight alternative to ~emacs-clojure/(cider and
+  inf-clojure)~ following the *Emacs/Elisp* philosophy.
+
+* Version
+
+  - Alpha: 0.0.1
+
+* Dependencies
+
+  - comint
+  - clojure-mode (optional)
+
+* Tested on
+
+  | Emacs   | 27.1 | 28.0 |
+  | FreeBSD | 12.1 | 12.2 |
+  | OpenBSD |  6.8 |      |
+
+* Installation
+** Manually
+
+   Clone =Inf-clojure= repository to an arbitrary location:
+
+   #+BEGIN_SRC sh
+
+   $ git clone https://github.com/lambdart/inf-clojure ~/.emacs.d/site-elisp/inf-clojure
+
+   #+END_SRC
+
+   Add =Inf-clojure= directory to =load-path= in your
+   Emacs initialization file (~init.el~) and load it.
+
+   #+BEGIN_SRC emacs-lisp
+
+   ;; add to load-path
+   (add-to-list 'load-path "/replace/me/to/inf-clojure/full/path")
+
+   ;; load inf-clojure feature
+   (require 'inf-clojure nil t)
+
+   #+END_SRC
+
+   - Note: For a more dynamic approach:
+     - =M-x load-file RET=
+     - =M-x load-library RET inf-clojure RET=
+
+** Compile
+
+   * Note: Optional (recommended).
+
+   To compile the files to the =Elisp= byte-compiled representation:
+
+   #+BEGIN_SRC sh
+
+   [at-inf-clojure-root-directory]$ gmake
+
+   #+END_SRC
+
+* Usage
+* Customize
+
+  * Note: To see all the options from =Emacs= directly, and to customize it,
+    just type: =M-x customize-group RET inf-clojure RET=.
+
+* Commands
+* References
+
+  - https://github.com/clojure-emacs/inf-clojure
+  - https://github.com/clojure-emacs/cider
+
+* LICENSE
+  MIT
+
+* EOF
+
+  #+BEGIN_SRC
+  Deisgn patterns are spoonfeed material for brainless programmers incapable of independet
+  thought, who will be resolved producing code as mediocre as the design patterns they used
+  to create it.
+  #+END_SRC
+  | Christer Ericson |
