@@ -35,7 +35,6 @@
 ;;; Code:
 
 (require 'comint)
-(require 'clojure-mode)
 
 (defgroup inf-clojure nil
   "Clojure comint/inferior functionalities."
@@ -392,6 +391,7 @@ default: 'symbol."
 (defun inf-clojure-syntax-table ()
   "Clojure-mode syntax table copy."
   (and (require 'clojure-mode nil t)
+       (boundp 'clojure-mode-syntax-table)
        (copy-syntax-table clojure-mode-syntax-table)))
 
 (defvar inf-clojure-mode-map
@@ -460,9 +460,9 @@ The following commands are available:
         comint-input-filter (function inf-clojure-comint-input-filter)
         comint-get-old-input (function inf-clojure-comint-get-old-input))
   ;; setup clojure mode
-  (when (require 'clojure nil t)
-    (clojure-mode-variables)
-    (clojure-font-lock-setup)
+  (when (require 'clojure-mode nil t)
+    ;; (funcall 'clojure-mode-variables)
+    ;; (funcall 'clojure-font-lock-setup)
     (set (make-local-variable 'font-lock-defaults) '(clojure-font-lock-keywords t)))
   ;; set local paragraph variables
   (set (make-local-variable 'paragraph-separate) "\\'")
