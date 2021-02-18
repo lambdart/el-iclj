@@ -71,7 +71,7 @@
   :group 'inf-clojure
   :type 'regexp)
 
-(defcustom inf-clojure-proc-timeout 4
+(defcustom inf-clojure-proc-timeout 2
   "The `accept-process-output' timeout in seconds."
   :group 'inf-clojure
   :type 'integer)
@@ -82,6 +82,9 @@
   :type 'string)
 ;; :set  `(lambda (symbol value)
 ;;          (set symbol (executable-find value))))
+
+(defvar inf-clojure-debug-buffer-name "*CLOJURE-DEBUG*"
+  "Debug (output) buffer name.")
 
 (defcustom inf-clojure-args '()
   "Command-line arguments to pass to `inf-clojure-program'."
@@ -117,10 +120,10 @@ considered a Clojure source file by `inf-clojure-load-file'."
   "Overlay used to display the process output text.")
 
 (defvar inf-clojure-proc-buffer nil
-  "The `inf-clojure' process buffer.")
+  "Comint process buffer.")
 
-(defvar inf-clojure-debug-buffer ""
-  "The `inf-clojure' debug buffer.")
+(defvar inf-clojure-debug-buffer nil
+  "Debug buffer.")
 
 (defvar inf-clojure-proc-output-list '()
   "Process output string list.")
@@ -136,6 +139,10 @@ considered a Clojure source file by `inf-clojure-load-file'."
   (and inf-clojure-proc-buffer
        (get-buffer-process inf-clojure-proc-buffer)))
 
+(defun inf-clojure-proc-sentinel (process event)
+  "Sentinel function to handle (PROCESS EVENT) relation."
+  (princ (format "Process: %s had the event '%s'" process event)))
+
 (defun inf-clojure-proc-parse-output ()
   "Parse process output list to string."
   (let ((text (mapconcat (lambda (str) str)
@@ -150,8 +157,17 @@ considered a Clojure source file by `inf-clojure-load-file'."
 
 (defun inf-clojure-display-output ()
   "Parse and display the comint output."
-  (let ((text (inf-clojure-proc-parse-output)))
-    (message "=> %s" text)))
+  ;; insert text in the debug buffer
+  (with-current-buffer inf-clojure-debug-buffer
+    (let ((buffer-read-only nil))
+      (erase-buffer)
+      (insert inf-clojure-last-text-output)))
+  ;; display line in overlay and echo buffer
+  (let ((line (concat " => " (car (split-string inf-clojure-last-text-output "\n")))))
+    ;; show one line in the overlay
+    (inf-clojure-display-overlay line)
+    ;; show one line in the echo buffer
+    (message "%s" line)))
 
 (defun inf-clojure-proc-wait (proc timeout)
   "Wait for the PROC output, leave if reaches the TIMEOUT."
@@ -163,6 +179,8 @@ considered a Clojure source file by `inf-clojure-load-file'."
       (accept-process-output proc timeout)
       ;; wait a little bit
       (sleep-for nil 100))
+    ;; parse text output
+    (inf-clojure-proc-parse-output)
     ;; finally display the text output
     (inf-clojure-display-output)))
 
@@ -239,6 +257,22 @@ TIMEOUT, the `accept-process-output' timeout."
   ;; kill the buffer
   (kill-buffer inf-clojure-proc-buffer))
 
+(defun inf-clojure-comint--setup-debug-buffer ()
+  "Setup the debug/output buffer."
+  ;; kill debug buffer (if necessary)
+  (kill-buffer inf-clojure-debug-buffer)
+  ;; create and save the new buffer
+  (setq inf-clojure-debug-buffer
+        (get-buffer-create inf-clojure-debug-buffer-name))
+  ;; change the major mode
+  (with-current-buffer inf-clojure-debug-buffer
+    ;; set read only
+    (setq-local buffer-read-only t)
+    ;; set clojure major mode if available
+    (and (require 'clojure-mode nil t)
+         (fboundp 'clojure-mode)
+         (clojure-mode))))
+
 ;;;###autoload
 (defun inf-clojure-comint-run ()
   "Run an inferior instance of some Clojure REPL inside Emacs."
@@ -258,6 +292,8 @@ TIMEOUT, the `accept-process-output' timeout."
     (setq inf-clojure-proc-buffer buffer)
     ;; start info-clojure-mode (comint related) and maybe jump to the buffer
     (with-current-buffer buffer (inf-clojure-mode))
+    ;; setup debug buffer (if necessary)
+    (inf-clojure-comint--setup-debug-buffer)
     ;; display buffer
     (display-buffer buffer 'display-buffer-pop-up-window)))
 
@@ -266,15 +302,14 @@ TIMEOUT, the `accept-process-output' timeout."
   (interactive)
   (message "inf-clojure (version %s)" inf-clojure-version))
 
-(defun inf-clojure-display-overlay ()
-  "Display `inf-clojure-overlay' with the last process output."
-  (let ((text (concat " => " inf-clojure-last-text-output)))
-    (move-overlay inf-clojure-overlay (point) (point) (current-buffer))
-    ;; The current C cursor code doesn't know to use the overlay's
-    ;; marker's stickiness to figure out whether to place the cursor
-    ;; before or after the string, so let's spoon-feed it the pos.
-    (put-text-property 0 1 'cursor t text)
-    (overlay-put inf-clojure-overlay 'before-string text)))
+(defun inf-clojure-display-overlay (line)
+  "Display `inf-clojure-overlay' with the last LINE output."
+  (move-overlay inf-clojure-overlay (point) (point) (current-buffer))
+  ;; The current C cursor code doesn't know to use the overlay's
+  ;; marker's stickiness to figure out whether to place the cursor
+  ;; before or after the string, so let's spoon-feed it the pos.
+  (put-text-property 0 1 'cursor t line)
+  (overlay-put inf-clojure-overlay 'before-string line))
 
 (defun inf-clojure-delete-overlay ()
   "Remove `info-clojure-overlay' display (if any) prior to new user input."
@@ -347,7 +382,7 @@ default: 'symbol."
   (inf-clojure-comint-send-string file-name 'load-file))
 
 (defun inf-clojure-doc (name)
-  "Invoke (doc name) operation."
+  "Invoke (doc NAME) operation."
   ;; map string function parameter
   (interactive (inf-clojure-read-thing "Doc"))
   ;; send doc operation
@@ -436,33 +471,66 @@ default: 'symbol."
 
 ;;;###autoload
 (define-minor-mode inf-clojure-minor-mode
-  "Minor mode for interacting with the inferior Clojure process buffer.
+  "Minor mode for interacting with the inferior Clojure (comint) process buffer.
+
+If called interactively, toggle ‘Inf-Clojure minor mode’.  If the
+prefix argument is positive, enable the mode, and if it is zero
+or negative, disable the mode.
+
+If called from Lisp, toggle the mode if ARG is ‘toggle’.  Enable
+the mode if ARG is nil, omitted, or is a positive number.
+Disable the mode if ARG is a negative number.
+
+The mode’s hook is called both when the mode is enabled and when
+it is disabled.
 
 The following commands are available:
 
 \\{inf-clojure-minor-mode-map}"
+
   :lighter ""
   :keymap inf-clojure-minor-mode-map
-  (setq-local comint-input-sender 'inf-clojure--send-string))
+  (cond
+   (inf-clojure-minor-mode
+    ;; set local input sender
+    (setq-local comint-input-sender #'inf-clojure-comint-input-sender)
+    ;; add delete overlay hook
+    (add-hook 'pre-command-hook #'inf-clojure-delete-overlay))
+   (t
+    ;; ensure overlay was deleted
+    (inf-clojure-delete-overlay)
+    ;; remove delete overlay hook
+    (remove-hook 'pre-command-hook #'inf-clojure-delete-overlay))))
 
 (define-derived-mode inf-clojure-mode comint-mode "Inf-Clojure"
   "Major mode for `inf-clojure' comint buffer.
 
-\\<inf-clojure-mode-map>"
+Runs a Clojure interpreter with the help of comint-mode,
+use the buffer abstraction as the main I/O bridge between
+Emacs and the subprocess.
+
+You can send text to the inferior Clojure process from other buffers or the `minibuffer'
+directly.
+
+    `inf-clojure-eval-defn'  sends function definition
+    `inf-clojure-eval-region' sends the current region
+    `inf-clojure-eval-buffer' sends the current buffer
+
+The following commands are available:
+
+\\{inf-clojure-minor-mode-map}"
 
   :group 'inf-clojure
   :syntax-table (inf-clojure-syntax-table)
   ;; set comint variables
-  ;;
   (setq comint-prompt-regexp inf-clojure-prompt-regexp
         comint-prompt-read-only inf-clojure-prompt-read-only
-        comint-input-sender (function inf-clojure-comint-input-sender)
-        comint-input-filter (function inf-clojure-comint-input-filter)
-        comint-get-old-input (function inf-clojure-comint-get-old-input))
-  ;; setup clojure mode
+        ;; functions
+        comint-input-sender  #'inf-clojure-comint-input-sender
+        comint-input-filter  #'inf-clojure-comint-input-filter
+        comint-get-old-input #'inf-clojure-comint-get-old-input)
+  ;; set clojure mode variable
   (when (require 'clojure-mode nil t)
-    ;; (funcall 'clojure-mode-variables)
-    ;; (funcall 'clojure-font-lock-setup)
     (set (make-local-variable 'font-lock-defaults) '(clojure-font-lock-keywords t)))
   ;; set local paragraph variables
   (set (make-local-variable 'paragraph-separate) "\\'")
