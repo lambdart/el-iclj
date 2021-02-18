@@ -123,13 +123,16 @@ considered a Clojure source file by `inf-clojure-load-file'."
   "Comint process buffer.")
 
 (defvar inf-clojure-debug-buffer nil
-  "Debug buffer.")
+  "Debug/Output buffer.")
 
 (defvar inf-clojure-proc-output-list '()
   "Process output string list.")
 
-(defvar inf-clojure-last-text-output ""
-  "Process last  string text output.")
+(defvar inf-clojure-last-output-text ""
+  "Process (cache) last output text.")
+
+(defvar inf-clojure-last-output-line ""
+  "Process (cache) last output line.")
 
 (defvar inf-clojure-prev-l/c-dir/file nil
   "Caches the last (directory . file) pair.")
@@ -143,31 +146,30 @@ considered a Clojure source file by `inf-clojure-load-file'."
   "Sentinel function to handle (PROCESS EVENT) relation."
   (princ (format "Process: %s had the event '%s'" process event)))
 
-(defun inf-clojure-proc-parse-output ()
-  "Parse process output list to string."
+(defun inf-clojure-proc-cache-output ()
+  "Parse and cache the process output."
   (let ((text (mapconcat (lambda (str) str)
                          (reverse inf-clojure-proc-output-list) "")))
     ;; cache the filtered last text output
-    (setq inf-clojure-last-text-output
+    (setq inf-clojure-last-output-text
           (dolist (regexp `(,inf-clojure-filter-regexp
                             ,comint-prompt-regexp
                             "[\r\n]$")
                           text)
-            (setq text (replace-regexp-in-string regexp "" text))))))
+            (setq text (replace-regexp-in-string regexp "" text))))
+    ;; cache the last output line
+    (setq inf-clojure-last-output-line
+          (car (last (split-string inf-clojure-last-output-text "\n"))))))
 
-(defun inf-clojure-display-output ()
-  "Parse and display the comint output."
+(defun inf-clojure-proc-logs-output ()
+  "Logs cached output (debug buffer)."
   ;; insert text in the debug buffer
   (with-current-buffer inf-clojure-debug-buffer
     (let ((buffer-read-only nil))
       (erase-buffer)
-      (insert inf-clojure-last-text-output)))
-  ;; display line in overlay and echo buffer
-  (let ((line (concat " => " (car (split-string inf-clojure-last-text-output "\n")))))
-    ;; show one line in the overlay
-    (inf-clojure-display-overlay line)
-    ;; show one line in the echo buffer
-    (message "%s" line)))
+      (insert inf-clojure-last-output-text)))
+  ;; echo last line
+  (message "=> %s" inf-clojure-last-output-line))
 
 (defun inf-clojure-proc-wait (proc timeout)
   "Wait for the PROC output, leave if reaches the TIMEOUT."
@@ -180,9 +182,9 @@ considered a Clojure source file by `inf-clojure-load-file'."
       ;; wait a little bit
       (sleep-for nil 100))
     ;; parse text output
-    (inf-clojure-proc-parse-output)
+    (inf-clojure-proc-cache-output)
     ;; finally display the text output
-    (inf-clojure-display-output)))
+    (inf-clojure-proc-logs-output)))
 
 (defun inf-clojure-comint-preoutput-filter (string)
   "Return the output STRING."
@@ -202,7 +204,7 @@ TIMEOUT, the `accept-process-output' timeout."
     (when (process-live-p proc)
       ;; last comint output list should always start empty
       (setq inf-clojure-proc-output-list '()
-            inf-clojure-last-text-output "")
+            inf-clojure-last-output-text "")
       ;; send string (or region) to the process
       (apply 'funcall send-func proc args)
       ;; always send a new line
@@ -309,7 +311,7 @@ TIMEOUT, the `accept-process-output' timeout."
   ;; marker's stickiness to figure out whether to place the cursor
   ;; before or after the string, so let's spoon-feed it the pos.
   (put-text-property 0 1 'cursor t line)
-  (overlay-put inf-clojure-overlay 'before-string line))
+  (overlay-put inf-clojure-overlay 'after-string line))
 
 (defun inf-clojure-delete-overlay ()
   "Remove `info-clojure-overlay' display (if any) prior to new user input."
@@ -318,7 +320,7 @@ TIMEOUT, the `accept-process-output' timeout."
 (defun inf-clojure-echo-last-output ()
   "Echo the last process output."
   (interactive)
-  (message " %s" inf-clojure-last-text-output))
+  (message " %s" inf-clojure-last-output-text))
 
 (defun inf-clojure-eval-defn ()
   "Send 'defn' to the inferior Clojure process."
@@ -349,8 +351,12 @@ default: 'symbol."
 (defun inf-clojure-eval-last-sexp ()
   "Send the previous sexp to the inferior Clojure process."
   (interactive)
+  ;; send region of the last expression
   (inf-clojure-comint-send-region
-   (save-excursion (backward-sexp) (point)) (point)))
+   (save-excursion (backward-sexp) (point)) (point))
+  ;; display the output in the overlay
+  (inf-clojure-display-overlay
+   (concat " => " inf-clojure-last-output-line)))
 
 (defun inf-clojure-eval-buffer ()
   "Send the current buffer to the inferior Clojure process."
