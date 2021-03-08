@@ -61,7 +61,7 @@
   :group 'inf-clojure
   :type 'string)
 
-(defcustom inf-clojure-comint-prompt-regexp "^[^>\n]*>+ *"
+(defcustom inf-clojure-comint-prompt-regexp "^\\( *#_\\|[^=> \n]+\\)=> *"
   "Regexp to recognize prompt."
   :group 'inf-clojure
   :type 'regexp)
@@ -188,13 +188,10 @@ with is controlled by the following custom flags:
 See its documentations to understand the be behavior
 that will be imposed if they are true."
 
-  ;; wait for the final prompt
-  (while inf-clojure-comint-filter-in-progress
-    (sleep-for 0 10))
   ;; parse text output
   (let ((text (mapconcat
-               (lambda (string)
-                 (inf-clojure-filter-output-string string))
+               (lambda (str)
+                 (inf-clojure-filter-output-string str))
                (reverse inf-clojure-comint-output-cache) "")))
     ;; display the output in the overlay
     (inf-clojure-display-overlay (concat " => " text))
@@ -226,7 +223,8 @@ SEND-FUNC possible values: `comint-send-string', `comint-send-region'."
     (if (not (process-live-p proc))
         (message "[INF-CLOJURE]: Error, process not found")
       ;; comint output cache should always start empty
-      (setq inf-clojure-comint-output-cache '())
+      (setq inf-clojure-comint-output-cache '()
+            inf-clojure-comint-filter-in-progress nil)
       ;; send string (or region) to the process
       (apply 'funcall send-func proc args)
       ;; always send a new line
@@ -234,7 +232,10 @@ SEND-FUNC possible values: `comint-send-string', `comint-send-region'."
       ;; run with timer
       (run-with-timer inf-clojure-comint-output-timeout
                       nil
-                      'inf-clojure-comint-in-progress-timeout))))
+                      'inf-clojure-comint-in-progress-timeout)
+      ;; wait for the final prompt
+      (while inf-clojure-comint-filter-in-progress
+        (sleep-for 0 100)))))
 
 ;;;###autoload
 (defun inf-clojure-comint-run ()
@@ -251,7 +252,7 @@ SEND-FUNC possible values: `comint-send-string', `comint-send-region'."
     (comint-check-proc buffer)
     ;; set process sentinel
     (set-process-sentinel (get-buffer-process buffer) 'inf-clojure-proc-sentinel)
-    ;; start inf-clojure-comint-mode
+    ;; start inferior clojure comint mode
     (with-current-buffer buffer (inf-clojure-comint-mode))
     ;; display buffer if the custom flag is true
     (when inf-clojure-display-comint-buffer-flag
@@ -482,16 +483,18 @@ The following commands are available:
     ;; define inf-clojure menu
     (inf-clojure-define-menu)
     ;; add comint preoutput filter function
-    (add-hook 'comint-preoutput-filter-functions 'inf-clojure-comint-preoutput-filter)
+    (add-hook 'comint-preoutput-filter-functions
+              'inf-clojure-comint-preoutput-filter nil t)
     ;; add delete overlay hook
-    (add-hook 'pre-command-hook #'inf-clojure-delete-overlay))
+    (add-hook 'pre-command-hook #'inf-clojure-delete-overlay nil t))
    (t
     ;; ensure overlay was deleted
     (inf-clojure-delete-overlay)
     ;; remove preoutput filter function
-    (remove-hook 'comint-preoutput-filter-functions 'inf-clojure-comint-preoutput-filter)
+    (remove-hook 'comint-preoutput-filter-functions
+                 'inf-clojure-comint-preoutput-filter t)
     ;; remove delete overlay hook
-    (remove-hook 'pre-command-hook #'inf-clojure-delete-overlay))))
+    (remove-hook 'pre-command-hook #'inf-clojure-delete-overlay t))))
 
 (define-derived-mode inf-clojure-comint-mode comint-mode "CLOJURE-REPL"
   "Major mode for the CLOJURE-REPL comint buffer.
