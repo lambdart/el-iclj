@@ -221,10 +221,10 @@ SEND-FUNC possible values: `comint-send-string', `comint-send-region'."
   (let ((proc (inf-clojure-get-proc)))
     ;; check if the process is alive
     (if (not (process-live-p proc))
-        (message "[INF-CLOJURE]: Error, process not found")
+        (error "[INF-CLOJURE]: Error, process not found")
       ;; comint output cache should always start empty
       (setq inf-clojure-comint-output-cache '()
-            inf-clojure-comint-filter-in-progress nil)
+            inf-clojure-comint-filter-in-progress t)
       ;; send string (or region) to the process
       (apply 'funcall send-func proc args)
       ;; always send a new line
@@ -235,7 +235,7 @@ SEND-FUNC possible values: `comint-send-string', `comint-send-region'."
                       'inf-clojure-comint-in-progress-timeout)
       ;; wait for the final prompt
       (while inf-clojure-comint-filter-in-progress
-        (sleep-for 0 100)))))
+        (sleep-for 0 10)))))
 
 ;;;###autoload
 (defun inf-clojure-comint-run ()
@@ -319,13 +319,13 @@ TIMEOUT, the `accept-process-output' timeout."
       (inf-clojure-comint-send-region (point) end))))
 
 (defun inf-clojure-read-thing (&optional prompt thing)
-  "Return `thing-at-point' (string) or read it.
+  "Read the `thing-at-point' (string) or asks for it.
 If PROMPT is non-nil use it as the read prompt.
 If THING  is non-nil use it as the `thing-at-point' parameter,
 default: 'symbol."
   (let* ((str (thing-at-point (or thing 'symbol) t))
          (fmt (if (not str) "%s: " "%s [%s]: "))
-         (prompt (format fmt (or prompt "Str: ") str)))
+         (prompt (format fmt (or prompt "Str") str)))
     ;; return the read list string
     (list (read-string prompt nil nil str))))
 
@@ -482,17 +482,11 @@ The following commands are available:
    (inf-clojure-mode
     ;; define inf-clojure menu
     (inf-clojure-define-menu)
-    ;; add comint preoutput filter function
-    (add-hook 'comint-preoutput-filter-functions
-              'inf-clojure-comint-preoutput-filter nil t)
     ;; add delete overlay hook
     (add-hook 'pre-command-hook #'inf-clojure-delete-overlay nil t))
    (t
     ;; ensure overlay was deleted
     (inf-clojure-delete-overlay)
-    ;; remove preoutput filter function
-    (remove-hook 'comint-preoutput-filter-functions
-                 'inf-clojure-comint-preoutput-filter t)
     ;; remove delete overlay hook
     (remove-hook 'pre-command-hook #'inf-clojure-delete-overlay t))))
 
@@ -522,6 +516,9 @@ The following commands are available:
         comint-input-sender  (function inf-clojure-comint-input-sender)
         comint-input-filter  (function inf-clojure-comint-input-filter)
         comint-get-old-input (function inf-clojure-comint-get-old-input))
+  ;; add comint preoutput filter function
+  (add-hook 'comint-preoutput-filter-functions
+            'inf-clojure-comint-preoutput-filter nil t)
   ;; set clojure mode variable
   (when (require 'clojure-mode nil t)
     (set (make-local-variable 'font-lock-defaults)
