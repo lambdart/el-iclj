@@ -187,7 +187,8 @@ with is controlled by the following custom flags:
 
 See its documentations to understand the be behavior
 that will be imposed if they are true."
-
+  ;; wait for the comint output
+  (inf-clojure-comint-wait-output)
   ;; parse text output
   (let ((text (mapconcat
                (lambda (str)
@@ -203,6 +204,15 @@ that will be imposed if they are true."
 (defun inf-clojure-comint-in-progress-timeout ()
   "Timeout, set the control variable to nil."
   (setq inf-clojure-comint-filter-in-progress nil))
+
+(defun inf-clojure-comint-wait-output ()
+  "Wait for the comint output."
+  ;; run with timer
+  (run-with-timer inf-clojure-comint-output-timeout nil
+                  'inf-clojure-comint-in-progress-timeout)
+  ;; wait for the final prompt
+  (while inf-clojure-comint-filter-in-progress
+    (sleep-for 0 100)))
 
 (defun inf-clojure-comint-preoutput-filter (string)
   "Return the output STRING."
@@ -228,14 +238,7 @@ SEND-FUNC possible values: `comint-send-string', `comint-send-region'."
       ;; send string (or region) to the process
       (apply 'funcall send-func proc args)
       ;; always send a new line
-      (comint-send-string proc "\n")
-      ;; run with timer
-      (run-with-timer inf-clojure-comint-output-timeout
-                      nil
-                      'inf-clojure-comint-in-progress-timeout)
-      ;; wait for the final prompt
-      (while inf-clojure-comint-filter-in-progress
-        (sleep-for 0 10)))))
+      (comint-send-string proc "\n"))))
 
 ;;;###autoload
 (defun inf-clojure-comint-run ()
@@ -335,14 +338,16 @@ default: 'symbol."
   ;; eval string s-expression
   (inf-clojure-comint-send-string string))
 
-(defun inf-clojure-eval-last-sexp ()
-  "Send the previous sexp to the inferior Clojure process."
-  (interactive)
+(defun inf-clojure-eval-last-sexp (&optional arg)
+  "Send the previous sexp to the inferior Clojure process.
+When ARG is non-nil dont wait/process the comint text output."
+  (interactive "P")
   ;; send region of the last expression
   (inf-clojure-comint-send-region
    (save-excursion (backward-sexp) (point)) (point))
   ;; display the output in the overlay
-  (inf-clojure-display-output))
+  (unless arg
+    (inf-clojure-display-output)))
 
 (defun inf-clojure-eval-buffer ()
   "Send the current buffer to the inferior Clojure process."
