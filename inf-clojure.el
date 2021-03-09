@@ -411,14 +411,14 @@ When ARG is non-nil dont wait/process the comint text output."
   "Invoke Clojure (dir NSNAME) operation."
   ;; map string function parameter
   (interactive (inf-clojure-read-thing "Namespace"))
-  ;; send apropos operation
+  ;; send ns-vars operation
   (inf-clojure-comint-send-string nsname 'ns-vars))
 
 (defun inf-clojure-set-ns (name)
   "Invoke Clojure (in-ns NAME) operation."
   ;; map string function parameter
   (interactive (inf-clojure-read-thing "Name"))
-  ;; send apropos operation
+  ;; send set-ns operation
   (inf-clojure-comint-send-string name 'set-ns))
 
 (defun inf-clojure-syntax-table ()
@@ -430,11 +430,16 @@ When ARG is non-nil dont wait/process the comint text output."
 (defvar inf-clojure-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-M-x")   #'inf-clojure-eval-defn) ; Gnu convention
+    (define-key map (kbd "C-c C-c") #'inf-clojure-eval-defn) ; SLIME/CIDER style
     (define-key map (kbd "C-x C-e") #'inf-clojure-eval-last-sexp) ; Gnu convention
     (define-key map (kbd "C-c C-e") #'inf-clojure-eval-last-sexp)
-    (define-key map (kbd "C-c C-c") #'inf-clojure-eval-defn) ; SLIME/CIDER style
-    (define-key map (kbd "C-c C-b") #'inf-clojure-eval-buffer)
     (define-key map (kbd "C-c C-r") #'inf-clojure-eval-region)
+    (define-key map (kbd "C-c C-b") #'inf-clojure-eval-buffer)
+    (define-key map (kbd "C-c C-s") #'inf-clojure-set-ns)
+    (define-key map (kbd "C-c C-n") #'inf-clojure-ns-vars)
+    (define-key map (kbd "C-c C-a") #'inf-clojure-apropos)
+    (define-key map (kbd "C-c C-d") #'inf-clojure-doc)
+    (define-key map (kbd "C-c C-f") #'inf-clojure-find-doc)
     (define-key map (kbd "C-c C-l") #'inf-clojure-load-file)
     (define-key map (kbd "C-c C-q") #'inf-clojure-comint-quit)
     map)
@@ -450,13 +455,18 @@ When ARG is non-nil dont wait/process the comint text output."
       ["Eval function" inf-clojure-eval-defn t]
       ["Eval last sexp" inf-clojure-eval-last-sexp t]
       "--"
-      ["Load file..." inf-clojure-load-file t]
+      ["Load file" inf-clojure-load-file t]
+      ["Set NS" inf-clojure-set-ns t]
+      ["NS vars" inf-clojure-ns-vars t]
+      "--"
+      ["Doc" inf-clojure-doc t]
+      ["Apropos" inf-clojure-apropos t]
+      ["Find-Doc" inf-clojure-find-doc t]
       "--"
       ["Quit REPL" inf-clojure-comint-quit])))
 
 (defvar inf-clojure-comint-mode-map
   (let ((map (copy-keymap comint-mode-map)))
-    (define-key map (kbd "C-x C-e") #'inf-clojure-eval-last-sexp)
     (define-key map (kbd "C-c C-l") #'inf-clojure-load-file)
     (define-key map (kbd "C-c C-q") #'inf-clojure-comint-quit)
     map)
