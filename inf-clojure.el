@@ -2,8 +2,8 @@
 ;;
 ;; Author: lambdart <lambdart@protonmail.com>
 ;; Maintainer: lambdart
-;; Homepage: https://github.com/lambdart/inf-clojure.el
-;; Version: 0.0.1 Alpha
+;; Homepage: https://github.com/lambdart/inf-clojure
+;; Version: 0.0.3 Alpha
 ;; Keywords:
 ;;
 ;; This file is NOT part of GNU Emacs.
@@ -78,7 +78,7 @@
   :set  `(lambda (symbol value)
            (set symbol (executable-find value))))
 
-(defcustom inf-clojure-debug-buffer-name "clojure-debug"
+(defcustom inf-clojure-debug-buffer-name "*CLOJURE-DEBUG*"
   "Inferior debug buffer name."
   :group 'inf-clojure
   :type 'string)
@@ -115,7 +115,7 @@ considered a Clojure source file by `inf-clojure-load-file'."
     (set-ns    . "(clojure.core/in-ns '%s)"))
   "Operation associative list: (OP-KEY . OP-FMT).")
 
-(defvar inf-clojure-version "0.02 Alpha"
+(defvar inf-clojure-version "0.0.3 Alpha"
   "Current version string.")
 
 (defvar inf-clojure-overlay (make-overlay (point-min) (point-min) nil t t)
@@ -147,6 +147,29 @@ considered a Clojure source file by `inf-clojure-load-file'."
   (interactive)
   (message "[INF-CLOJURE] (version %s)" inf-clojure-version))
 
+(defun inf-clojure-get-debug-buffer ()
+  "Return/create the `inf-clojure-debug-buffer'."
+  (if (buffer-live-p inf-clojure-debug-buffer)
+      inf-clojure-debug-buffer
+    (let ((buffer (get-buffer-create inf-clojure-debug-buffer-name)))
+      (with-current-buffer buffer
+        ;; enable clojure-mode if available
+        (and (require 'clojure-mode nil t)
+             (fboundp 'clojure-mode)
+             (clojure-mode))
+        ;; change read-only property
+        (setq-local buffer-read-only t))
+      ;; cache and return the debug buffer
+      (setq inf-clojure-debug-buffer buffer))))
+
+(defun inf-clojure-insert-string-buffer (string)
+  "Insert STRING int the debug buffer."
+  (let ((buffer (inf-clojure-get-debug-buffer))
+        (inhibit-read-only t))
+    (with-current-buffer buffer
+      (insert string)
+      (goto-char (point-max)))))
+
 (defun inf-clojure-display-overlay (text)
   "Display TEXT using the `inf-clojure-overlay' at point."
   (move-overlay inf-clojure-overlay (point) (point) (current-buffer))
@@ -175,8 +198,8 @@ considered a Clojure source file by `inf-clojure-load-file'."
   (dolist (regexp `(,inf-clojure-comint-prompt-regexp) string)
     (setq string (replace-regexp-in-string regexp "" string))))
 
-(defun inf-clojure-display-output ()
-  "Display last output from the csi interpreter.
+(defun inf-clojure-display-last-line ()
+  "Display last line from the *csi* output.
 
 This function display (or insert the text) in diverse locations
 with is controlled by the following custom flags:
@@ -190,15 +213,17 @@ that will be imposed if they are true."
   ;; wait for the comint output
   (inf-clojure-comint-wait-output)
   ;; parse text output
-  (let ((text (mapconcat
-               (lambda (str)
-                 (inf-clojure-filter-output-string str))
-               (reverse inf-clojure-comint-output-cache) "")))
-    ;; display the output in the overlay
-    (inf-clojure-display-overlay (concat " => " text))
+  (let ((line (pop inf-clojure-comint-output-cache)))
+    (while (and (not (eq line nil))
+                (string-empty-p line))
+      (setq line (pop inf-clojure-comint-output-cache)))
+    ;; update line if necessary
+    (setq line (or line "nil"))
+    ;; display line in the overlay
+    (inf-clojure-display-overlay (concat " => " line))
     ;; echo the output line
-    (message " => %s" text)
-    ;; return nil (convention)
+    (message " => %s" line)
+    ;; return nil
     nil))
 
 (defun inf-clojure-comint-in-progress-timeout ()
@@ -216,9 +241,11 @@ that will be imposed if they are true."
 
 (defun inf-clojure-comint-preoutput-filter (string)
   "Return the output STRING."
-  (let ((string (if (stringp string) string "")))
-    ;; save the output
-    (push string inf-clojure-comint-output-cache)
+  (let ((text (inf-clojure-filter-output-string string)))
+    ;; save the text output
+    (push text inf-clojure-comint-output-cache)
+    ;; insert text string in the debug buffer
+    (inf-clojure-insert-string-buffer text)
     ;; verify filter in progress control variable
     (when (string-match-p inf-clojure-comint-prompt-regexp string)
       (setq inf-clojure-comint-filter-in-progress nil))
@@ -347,7 +374,7 @@ When ARG is non-nil dont wait/process the comint text output."
    (save-excursion (backward-sexp) (point)) (point))
   ;; display the output in the overlay
   (unless arg
-    (inf-clojure-display-output)))
+    (inf-clojure-display-last-line)))
 
 (defun inf-clojure-eval-buffer ()
   "Send the current buffer to the inferior Clojure process."
