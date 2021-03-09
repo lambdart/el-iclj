@@ -162,8 +162,8 @@ considered a Clojure source file by `inf-clojure-load-file'."
       ;; cache and return the debug buffer
       (setq inf-clojure-debug-buffer buffer))))
 
-(defun inf-clojure-insert-string-buffer (string)
-  "Insert STRING int the debug buffer."
+(defun inf-clojure-debug-buffer-insert (string)
+  "Insert STRING into the `info-clojure-debug-buffer'."
   (let ((buffer (inf-clojure-get-debug-buffer))
         (inhibit-read-only t))
     (with-current-buffer buffer
@@ -245,7 +245,7 @@ that will be imposed if they are true."
     ;; save the text output
     (push text inf-clojure-comint-output-cache)
     ;; insert text string in the debug buffer
-    (inf-clojure-insert-string-buffer text)
+    (inf-clojure-debug-buffer-insert text)
     ;; verify filter in progress control variable
     (when (string-match-p inf-clojure-comint-prompt-regexp string)
       (setq inf-clojure-comint-filter-in-progress nil))
