@@ -35,6 +35,7 @@
 ;;; Code:
 
 (require 'comint)
+(require 'subr-x)
 
 (defgroup inf-clojure nil
   "Clojure comint/inferior functionalities."
@@ -130,10 +131,7 @@ considered a Clojure source file by `inf-clojure-load-file'."
 (defvar inf-clojure-comint-output-cache '()
   "Process output string list.")
 
-(defvar inf-clojure-last-output-text ""
-  "Process (cache) last output text.")
-
-(defvar inf-clojure-last-output-line ""
+(defvar inf-clojure-last-output ""
   "Process (cache) last output line.")
 
 (defvar inf-clojure-prev-l/c-dir/file nil
@@ -177,7 +175,7 @@ considered a Clojure source file by `inf-clojure-load-file'."
   ;; marker's stickiness to figure out whether to place the cursor
   ;; before or after the string, so let's spoon-feed it the pos.
   (put-text-property 0 1 'cursor t text)
-  (overlay-put inf-clojure-overlay 'after-string text))
+  (overlay-put inf-clojure-overlay 'before-string text))
 
 (defun inf-clojure-delete-overlay ()
   "Hide `info-clojure-overlay' display."
@@ -223,6 +221,8 @@ that will be imposed if they are true."
     (inf-clojure-display-overlay (concat " => " line))
     ;; echo the output line
     (message " => %s" line)
+    ;; update last output
+    (setq inf-clojure-last-output line)
     ;; return nil
     nil))
 
@@ -334,20 +334,6 @@ TIMEOUT, the `accept-process-output' timeout."
   ;; kill the buffer
   (kill-buffer inf-clojure-proc-buffer))
 
-(defun inf-clojure-echo-last-output ()
-  "Echo the last process output."
-  (interactive)
-  (message " %s" inf-clojure-last-output-text))
-
-(defun inf-clojure-eval-defn ()
-  "Send 'defn' to the inferior Clojure process."
-  (interactive)
-  (save-excursion
-    (end-of-defun)
-    (let ((end (point)))
-      (beginning-of-defun)
-      (inf-clojure-comint-send-region (point) end))))
-
 (defun inf-clojure-read-thing (&optional prompt thing)
   "Read the `thing-at-point' (string) or asks for it.
 If PROMPT is non-nil use it as the read prompt.
@@ -358,6 +344,20 @@ default: 'symbol."
          (prompt (format fmt (or prompt "Str") str)))
     ;; return the read list string
     (list (read-string prompt nil nil str))))
+
+(defun inf-clojure-echo-last-output ()
+  "Echo the last process output."
+  (interactive)
+  (message " => %s" inf-clojure-last-output))
+
+(defun inf-clojure-eval-defn ()
+  "Send 'defn' to the inferior Clojure process."
+  (interactive)
+  (save-excursion
+    (end-of-defun)
+    (let ((end (point)))
+      (beginning-of-defun)
+      (inf-clojure-comint-send-region (point) end))))
 
 (defun inf-clojure-eval-expression (string)
   "Eval STRING sexp in the current inferior Clojure process."
