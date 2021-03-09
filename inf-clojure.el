@@ -52,6 +52,17 @@
   :group 'inf-clojure
   :type 'boolean)
 
+(defcustom inf-clojure-display-overlay-flag t
+  "Non-nil means display last output text in a overlay."
+  :group 'chicken
+  :type 'boolean)
+
+(defcustom inf-clojure-echo-last-output-flag nil
+  "Non-nil means echo last output line.
+Using the `message' builtin function."
+  :group 'chicken
+  :type 'boolean)
+
 (defcustom inf-clojure-display-comint-buffer-flag t
   "Non-nil means display comint-buffer after its creation."
   :group 'inf-clojure
@@ -74,7 +85,7 @@
 
 (defcustom inf-clojure-program (executable-find "clojure")
   "Clojure executable full path program."
-  :group 'info-clojure
+  :group 'inf-clojure
   :type 'string
   :set  `(lambda (symbol value)
            (set symbol (executable-find value))))
@@ -86,12 +97,12 @@
 
 (defcustom inf-clojure-program-args '()
   "Command-line arguments to pass to `inf-clojure-program'."
-  :group 'info-clojure
+  :group 'inf-clojure
   :type 'list)
 
 (defcustom inf-clojure-start-file nil
   "Inferior Clojure start file."
-  :group 'info-clojure
+  :group 'inf-clojure
   :type 'string)
 
 (defcustom inf-clojure-source-modes '(clojure-mode)
@@ -131,7 +142,7 @@ considered a Clojure source file by `inf-clojure-load-file'."
 (defvar inf-clojure-comint-output-cache '()
   "Process output string list.")
 
-(defvar inf-clojure-last-output ""
+(defvar inf-clojure-comint-last-output ""
   "Process (cache) last output line.")
 
 (defvar inf-clojure-prev-l/c-dir/file nil
@@ -161,7 +172,7 @@ considered a Clojure source file by `inf-clojure-load-file'."
       (setq inf-clojure-debug-buffer buffer))))
 
 (defun inf-clojure-debug-buffer-insert (string)
-  "Insert STRING into the `info-clojure-debug-buffer'."
+  "Insert STRING into the `inf-clojure-debug-buffer'."
   (let ((buffer (inf-clojure-get-debug-buffer))
         (inhibit-read-only t))
     (with-current-buffer buffer
@@ -178,7 +189,7 @@ considered a Clojure source file by `inf-clojure-load-file'."
   (overlay-put inf-clojure-overlay 'before-string text))
 
 (defun inf-clojure-delete-overlay ()
-  "Hide `info-clojure-overlay' display."
+  "Hide `inf-clojure-overlay' display."
   (delete-overlay inf-clojure-overlay))
 
 (defun inf-clojure-get-proc ()
@@ -203,8 +214,7 @@ This function display (or insert the text) in diverse locations
 with is controlled by the following custom flags:
 
 `inf-clojure-display-overlay-flag',
-`inf-clojure-insert-in-message-flag',
-`inf-clojure-insert-in-debug-flag'
+`inf-clojure-echo-last-output-flag'
 
 See its documentations to understand the be behavior
 that will be imposed if they are true."
@@ -218,11 +228,13 @@ that will be imposed if they are true."
     ;; update line if necessary
     (setq line (or line "nil"))
     ;; display line in the overlay
-    (inf-clojure-display-overlay (concat " => " line))
+    (and inf-clojure-display-overlay-flag
+         (inf-clojure-display-overlay (concat " => " line)))
     ;; echo the output line
-    (message " => %s" line)
-    ;; update last output
-    (setq inf-clojure-last-output line)
+    (and inf-clojure-echo-last-output-flag
+         (message " => %s" line))
+    ;; cache last output line
+    (setq inf-clojure-comint-last-output line)
     ;; return nil
     nil))
 
@@ -348,7 +360,7 @@ default: 'symbol."
 (defun inf-clojure-echo-last-output ()
   "Echo the last process output."
   (interactive)
-  (message " => %s" inf-clojure-last-output))
+  (message " => %s" inf-clojure-comint-last-output))
 
 (defun inf-clojure-eval-defn ()
   "Send 'defn' to the inferior Clojure process."
