@@ -29,8 +29,8 @@
 
 * Goal
 
-  Be a lightweight alternative to ~emacs-clojure/(cider and
-  inf-clojure)~ following the *Emacs/Elisp* philosophy.
+  Be a lightweight alternative to ~inf-clojure and
+  cider)~ following the *Emacs/Elisp* philosophy.
 
 * Version
 
@@ -50,30 +50,30 @@
 * Installation
 ** Manually
 
-   Clone =Inf-clojure= repository to an arbitrary location:
+   Clone =Iclj= repository to an arbitrary location:
 
    #+BEGIN_SRC sh
 
-   $ git clone https://github.com/lambdart/inf-clojure ~/.emacs.d/site-elisp/inf-clojure
+   $ git clone https://github.com/lambdart/iclj ~/.emacs.d/site-elisp/iclj
 
    #+END_SRC
 
-   Add =Inf-clojure= directory to =load-path= in your
+   Add =Iclj= directory to =load-path= in your
    Emacs initialization file (~init.el~) and load it.
 
    #+BEGIN_SRC emacs-lisp
 
    ;; add to load-path
-   (add-to-list 'load-path "/replace/me/to/inf-clojure/full/path")
+   (add-to-list 'load-path "/replace/me/to/iclj/full/path")
 
-   ;; load inf-clojure feature
-   (require 'inf-clojure nil t)
+   ;; load iclj feature
+   (require 'iclj nil t)
 
    #+END_SRC
 
    - Note: For a more dynamic approach:
      - =M-x load-file RET=
-     - =M-x load-library RET inf-clojure RET=
+     - =M-x load-library RET iclj RET=
 
 ** Compile
 
@@ -83,7 +83,7 @@
 
    #+BEGIN_SRC sh
 
-   [at-inf-clojure-root-directory]$ gmake
+   [at-iclj-root-directory]$ gmake
 
    #+END_SRC
 
@@ -91,7 +91,7 @@
 * Customize
 
   * Note: To see all the options from =Emacs= directly, and to customize it,
-    just type: =M-x customize-group RET inf-clojure RET=.
+    just type: =M-x customize-group RET iclj RET=.
 
 * Commands
 * References
