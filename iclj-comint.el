@@ -106,7 +106,7 @@
 
 (defvar iclj-comint-resp-handler nil)
 
-(defvar iclj-comint-prev-buffer nil)
+(defvar iclj-comint-from-buffer nil)
 
 (defun iclj-comint-redirect-buffer ()
   "Get or create the \\{iclj-comint-redirect-buffer}."
@@ -124,7 +124,7 @@
 (defun iclj-comint-redirect-buffer-content ()
   "Return the redirect-buffer content."
   (with-current-buffer (iclj-comint-redirect-buffer)
-    (buffer-string)))
+    (buffer-substring-no-properties (point-min) (point-max))))
 
 (defun iclj-comint-redirect-completed-p ()
   "Return if the PROC/BUFFER redirecting is over."
@@ -176,13 +176,13 @@
      ,@body
      ;; clean display function
      (setq iclj-comint-resp-handler nil
-           iclj-comint-prev-buffer nil)))
+           iclj-comint-from-buffer nil)))
 
 (defun iclj-comint-redirect-dispatch-resp-handler ()
   "Dispatch the display handler callback."
   (when iclj-comint-resp-handler
     (funcall iclj-comint-resp-handler
-             iclj-comint-prev-buffer)))
+             iclj-comint-from-buffer)))
 
 (defun iclj-comint-cache-output ()
   "Return cached cache output."
