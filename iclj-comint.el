@@ -37,7 +37,7 @@
 (require 'comint)
 
 (defgroup iclj-comint nil
-  "Clojure Scheme Utilities."
+  "Clojure comint utilities."
   :prefix "iclj-comint-"
   :group 'iclj-comint)
 
@@ -114,7 +114,7 @@
       iclj-comint-redirect-buffer
     (let ((buffer (get-buffer-create iclj-comint-redirect-buffer-name)))
       (with-current-buffer buffer
-        ;; enable scheme-mode if available and chicken-mode?
+        ;; enable clojure-mode?
         (and (require 'clojure-mode nil t)
              (fboundp 'clojure-mode)
              (clojure-mode)))
@@ -204,7 +204,7 @@
   (let ((proc (iclj-comint-proc)))
     ;; check if the process is alive
     (if (not (process-live-p proc))
-        (message "[CHICKEN]: error, process not found")
+        (message "[ICLJ]: error, process not found")
       ;; output list should always start empty
       ;; set progress control variable to true
       (setq iclj-comint-output-cache '("")
@@ -223,7 +223,7 @@ If NO-DISPLAY is non-nil, do not show the output buffer."
          (proc-buffer (process-buffer proc))
          (output-buffer (iclj-comint-redirect-buffer)))
     (if (not (buffer-live-p output-buffer))
-        (message "[CHICKEN]: error, no redirect output buffer available")
+        (message "[ICLJ]: error, no redirect output buffer available")
       ;; erase redirect buffer
       (iclj-comint-redirect-erase-buffer)
       ;; change to the process buffer
@@ -258,8 +258,7 @@ If NO-DISPLAY is non-nil, do not show the output buffer."
       (buffer-substring (point) end))))
 
 (defun iclj-comint-setup ()
-  "Helper function to setup `comint-mode' related variables.
-This function will be called by `chicken-mode-hook.'"
+  "Helper function to setup `comint-mode' related variables."
   ;; set comint related variables
   (setq comint-process-echoes t
         comint-input-ignoredups nil
@@ -285,14 +284,14 @@ This function will be called by `chicken-mode-hook.'"
                        iclj-comint-start-file
                        iclj-comint-program-args)))
     (unless buffer
-      (error "[CHICKEN]: Error, start process %s: fails"
+      (error "[ICLJ]: Error, start process %s: fails"
              iclj-comint-program))
     ;; check comint process
     (comint-check-proc buffer)
     ;; set process sentinel
     (set-process-sentinel (get-buffer-process buffer)
                           'iclj-comint-proc-sentinel)
-    ;; start chicken comint mode
+    ;; start clojure comint mode
     (with-current-buffer buffer
       (iclj-comint-mode))
     ;; display buffer
