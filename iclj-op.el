@@ -35,7 +35,9 @@
 ;;; Code:
 
 (require 'clojure-mode)
+
 (require 'iclj-comint)
+(require 'iclj-completion)
 
 (defvar iclj-op-alist
   `((input          . (nil "%s"))
@@ -45,7 +47,8 @@
     (doc            . (nil "(clojure.repl/doc %s)"))
     (find-doc       . (nil "(clojure.repl/find-doc %S)"))
     (source         . (nil "(clojure.repl/source %s)"))
-    (apropos        . (nil "(doseq [var (sort (clojure.repl/apropos %S))] (println (str var)))"))
+    (complete       . (iclj-completion-handler "(clojure.repl/apropos %S)"))
+    (apropos        . (nil "(doseq [var (sort (clojure.repl/apropos %S))] (println (str var)))"))a
     (ns-vars        . (nil "(clojure.repl/dir %s)"))
     (set-ns         . (nil "(clojure.core/in-ns '%s)")))
   "Operation associative list: (OP-KEY . (OP-FN OP-FMT).
@@ -68,7 +71,7 @@ INPUT, the string or the region bounds."
             (op-fmt-string (cadr op)))
         ;; set comint display function callback and cache the current buffer
         (setq iclj-comint-resp-handler op-resp-handler
-              iclj-comint-prev-buffer (current-buffer))
+              iclj-comint-from-buffer (current-buffer))
         ;; send the parsed input to REPL process/buffer
         (apply 'iclj-comint-redirect-input-to-process
                ;; set process send function
@@ -83,16 +86,21 @@ INPUT, the string or the region bounds."
                (if (> (length input) 1) input
                  (list (format op-fmt-string (car input)))))))))
 
-(defun iclj-op-thing-at-point (&optional thing prompt)
-  "Return `thing-at-point' or read it.
-If THING is non-nil use it as the `thing-at-point' parameter,
-default: 'symbol.
-If PROMPT is non-nil use it as the read prompt."
-  (let* ((string (thing-at-point (or thing 'symbol) t))
-         (fmt (if (not string) "%s: " "%s[%s]: "))
-         (prompt (format fmt (or prompt "String") string)))
+(defun iclj-op-thing-at-point (&optional thing)
+  "Return the THING at point.
+See the documentation of `thing-at-point' to understand what
+thing means."
+  (or (thing-at-point (or thing 'symbol) t) ""))
+
+(defun iclj-op-minibuffer-read (&optional thing prompt)
+  "Read string using the minibuffer facilities.
+If THING is non-nil, it will be used as the minibuffer default parameter.
+If PROMPT is non-nil, it will be used as the minibuffer prompt."
+  (let* ((str (iclj-op-thing-at-point thing))
+         (fmt (if (not str) "%s: " "%s[%s]: "))
+         (prompt (format fmt (or prompt "String") str)))
     ;; return the read list string
-    (list (read-string prompt nil nil string))))
+    (list (read-string prompt nil nil str))))
 
 (defun iclj-op-eval-defn ()
   "Send definition to the Clojure comint process."
@@ -105,7 +113,7 @@ If PROMPT is non-nil use it as the read prompt."
 
 (defun iclj-op-eval-sexp (sexp)
   "Eval SEXP string, i.e, send it to Clojure comint process."
-  (interactive (iclj-op-thing-at-point 'sexp "Eval"))
+  (interactive (iclj-op-minibuffer-read 'sexp "Eval"))
   ;; eval string symbolic expression
   (iclj-op-dispatch 'eval "string" nil sexp))
 
@@ -162,43 +170,53 @@ considered a Clojure source file by `iclj-load-file'.")
 
 (defun iclj-op-doc (input)
   "Describe identifier INPUT (string) operation."
-  (interactive (iclj-op-thing-at-point 'sexp "Doc"))
+  (interactive (iclj-op-minibuffer-read 'sexp "Doc"))
   ;; documentation operation
   (iclj-op-dispatch 'doc "string" nil input))
 
 (defun iclj-op-find-doc (input)
   "Find INPUT documentation ."
-  (interactive (iclj-op-thing-at-point nil "Doc-dwim"))
+  (interactive (iclj-op-minibuffer-read nil "Doc-dwim"))
   ;; doc-dwin operation
   (iclj-op-dispatch 'find-doc "string" nil input))
 
 (defun iclj-op-apropos (input)
   "Invoke Clojure (apropos INPUT) operation."
   ;; map string function parameter
-  (interactive (iclj-op-thing-at-point nil "Search for"))
+  (interactive (iclj-op-minibuffer-read nil "Search for"))
   ;; send apropos operation
   (iclj-op-dispatch 'apropos "string" nil input))
 
 (defun iclj-op-ns-vars (nsname)
   "Invoke Clojure (dir NSNAME) operation."
   ;; map string function parameter
-  (interactive (iclj-op-thing-at-point nil "Namespace"))
+  (interactive (iclj-op-minibuffer-read nil "Namespace"))
   ;; send ns-vars operation
   (iclj-op-dispatch 'ns-vars "string" nil nsname))
 
 (defun iclj-op-set-ns (name)
   "Invoke Clojure (in-ns NAME) operation."
   ;; map string function parameter
-  (interactive (iclj-op-thing-at-point nil "Name"))
+  (interactive (iclj-op-minibuffer-read nil "Name"))
   ;; send set-ns operation
   (iclj-op-dispatch 'set-ns "string" nil name))
 
 (defun iclj-op-source (name)
   "Invoke Clojure (source NAME) operation."
   ;; map string function parameter
-  (interactive (iclj-op-thing-at-point nil "Symbol"))
+  (interactive (iclj-op-minibuffer-read nil "Symbol"))
   ;; send set-ns operation
   (iclj-op-dispatch 'source "string" nil name))
+
+(defun iclj-op-complete ()
+  "Invoke Clojure complete operation."
+  ;; map string function parameter
+  (interactive)
+  ;; set completion bounds (beg/end)
+  (iclj-completion-set-bounds)
+  ;; dispatch the complete operation
+  (let ((prefix (iclj-completion-prefix)))
+    (and prefix (iclj-op-dispatch 'complete "string" nil prefix))))
 
 (provide 'iclj-op)
 
