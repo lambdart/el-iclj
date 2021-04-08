@@ -39,36 +39,29 @@
 (defvar iclj-completion-beg nil)
 (defvar iclj-completion-end nil)
 
-;; necessary?
-(defconst iclj-bad-chars "^[] \"'`><,;|&{()[@\\^]"
-  "Regexp that define undesired chars.")
-
 (defun iclj-keyword-to-symbol (keyword)
   "Convert KEYWORD to a symbol."
   (when keyword (replace-regexp-in-string "\\`:+" "" keyword)))
 
-(defun iclj-expression-bounds-at-point ()
+(defun iclj-bounds-of-thing-at-point ()
   "Return expression bounds at point."
   (when (not (memq (char-syntax (following-char)) '(?w ?_)))
-    (save-excursion
-      (let* ((end (point))
-             (skipped-back (skip-chars-backward iclj-bad-chars))
-             (start (+ end skipped-back))
-             (chars (or (thing-at-point 'symbol)
-                        (iclj-keyword-to-symbol (buffer-substring start end)))))
-        (when (> (length chars) 0)
-          (let ((first-char (substring-no-properties chars 0 1)))
-            (when (string-match-p "[^0-9]" first-char)
-              (list (point) end))))))))
+    (let* ((bounds (bounds-of-thing-at-point 'symbol))
+           (beg (car-safe bounds))
+           (end (cdr-safe bounds))
+           (thing (or (thing-at-point 'symbol)
+                      (iclj-keyword-to-symbol (buffer-substring beg end)))))
+      (when (> (length thing) 0)
+        (list beg end)))))
 
-(defun iclj-expression-at-point ()
+(defun iclj-thing-at-point ()
   "Return expression at point to complete."
-  (let ((bounds (iclj-expression-bounds-at-point)))
+  (let ((bounds (iclj-bounds-of-thing-at-point)))
     (and bounds (buffer-substring (car bounds) (cdr bounds)))))
 
 (defun iclj-completion-set-bounds ()
   "Set completion bounds."
-  (let* ((bounds (iclj-expression-bounds-at-point))
+  (let* ((bounds (iclj-bounds-of-thing-at-point))
          (beg (car bounds))
          (end (cadr bounds)))
     (setq iclj-completion-beg beg
