@@ -36,13 +36,12 @@
 
 (defun iclj-util-bounds-of-thing-at-point ()
   "Return expression bounds at point."
-  (let ((bounds (if (use-region-p)
-                    (cons (region-beginning) (region-end))
-                  (or (bounds-of-thing-at-point 'symbol)
-                      (bounds-of-thing-at-point 'word)
-                      (cons (point)
-                            (point))))))
-    bounds))
+  (if (use-region-p)
+      (cons (region-beginning) (region-end))
+    (or (bounds-of-thing-at-point 'symbol)
+        (bounds-of-thing-at-point 'word)
+        (cons (point)
+              (point)))))
 
 (defun iclj-util-valid-buffer-last-line (buffer)
   "Return a 'valid' last line from BUFFER."
@@ -64,9 +63,8 @@
 
 (defun iclj-util-last-line (buffer)
   "Return the BUFFER last non-nil line."
-  (let ((last-line "nil"))
-    (if (not (buffer-live-p buffer)) last-line
-      (iclj-util-valid-buffer-last-line buffer))))
+  (if (not (buffer-live-p buffer)) "nil"
+    (iclj-util-valid-buffer-last-line buffer)))
 
 (provide 'iclj-util)
 
