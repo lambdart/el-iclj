@@ -34,27 +34,15 @@
 ;;
 ;;; Code:
 
-(defun iclj-util-keyword-to-symbol (keyword)
-  "Convert KEYWORD to a symbol."
-  (when keyword (replace-regexp-in-string "\\`:+" "" keyword)))
-
 (defun iclj-util-bounds-of-thing-at-point ()
   "Return expression bounds at point."
-  (when (not (memq (char-syntax (following-char)) '(?w ?_)))
-    (let* ((bounds (bounds-of-thing-at-point 'symbol))
-           (beg (car-safe bounds))
-           (end (cdr-safe bounds))
-           ;; set thing (symbol or keyword) at point
-           (thing (or (thing-at-point 'symbol)
-                      (iclj-util-keyword-to-symbol
-                       (buffer-substring beg end)))))
-      ;; return the region delimiters
-      (when (> (length thing) 0) (list beg end)))))
-
-(defun iclj-util-thing-at-point ()
-  "Return expression at point to complete."
-  (let ((bounds (iclj-util-bounds-of-thing-at-point)))
-    (and bounds (buffer-substring (car bounds) (cdr bounds)))))
+  (let ((bounds (if (use-region-p)
+                    (cons (region-beginning) (region-end))
+                  (or (bounds-of-thing-at-point 'symbol)
+                      (bounds-of-thing-at-point 'word)
+                      (cons (point)
+                            (point))))))
+    bounds))
 
 (provide 'iclj-util)
 

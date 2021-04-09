@@ -185,7 +185,7 @@ considered a Clojure source file by `iclj-load-file'.")
 
 (defun iclj-op-find-doc (input)
   "Find INPUT documentation ."
-  (interactive (iclj-op-minibuffer-read nil "Doc-dwim"))
+  (interactive (iclj-op-minibuffer-read nil "Find-doc"))
   ;; doc-dwin operation
   (iclj-op-dispatch 'find-doc "string" nil nil input))
 
@@ -224,8 +224,9 @@ considered a Clojure source file by `iclj-load-file'.")
   ;; set completion bounds (beg/end)
   (iclj-completion-set-bounds)
   ;; dispatch the complete operation
-  (let ((prefix (iclj-completion-prefix)))
-    (and prefix (iclj-op-dispatch 'complete "string" nil t prefix))))
+  (let ((initial-input (iclj-completion-initial-input)))
+    (when initial-input
+      (iclj-op-dispatch 'complete "string" nil t initial-input))))
 
 (provide 'iclj-op)
 

@@ -37,57 +37,88 @@
 (require 'iclj-util)
 (require 'iclj-comint)
 
-(defvar iclj-completion-beg nil
+(defvar iclj-completion-beg 0
   "Begging of the completion prefix candidate (region related).")
 
-(defvar iclj-completion-end nil
+(defvar iclj-completion-end 0
   "End of the completion prefix candidate (region related).")
+
+(defvar iclj-completion-initial-input ""
+  "Completion initial input.")
 
 (defun iclj-completion-set-bounds ()
   "Set completion bounds."
   (let* ((bounds (iclj-util-bounds-of-thing-at-point))
          (beg (car bounds))
-         (end (cadr bounds)))
+         (end (cdr bounds)))
     (setq iclj-completion-beg beg
           iclj-completion-end end)))
 
-(defun iclj-completion-prefix ()
-  "Return completion prefix."
-  (and iclj-completion-beg
-       iclj-completion-end
-       (buffer-substring-no-properties iclj-completion-beg
-                                       iclj-completion-end)))
+(defun iclj-completion-clean-variables ()
+  "Reset variables."
+  (setq iclj-completion-beg 0
+        iclj-completion-end 0
+        iclj-completion-initial-input ""))
 
-(defun iclj-completion-insert (beg end completion)
-  "Insert COMPLETION using BEG/END delimiters."
-  (let ((inhibit-read-only t)
-        (deactivate-mark nil))
-    ;; delete previous region
-    (delete-region beg end)
-    ;; insert the completion at point
-    (insert completion)))
+(defun iclj-completion-bounds-p ()
+  "Bounds predicate."
+  (= iclj-completion-beg iclj-completion-end))
+
+(defun iclj-completion-initial-input ()
+  "Return or set (implicit) completion initial input."
+  (unless (iclj-completion-bounds-p)
+    (setq iclj-completion-initial-input
+          (buffer-substring-no-properties iclj-completion-beg
+                                          iclj-completion-end))))
+
+(defun iclj-completion-insert (buffer beg end completion)
+  "Insert COMPLETION in current BUFFER using BEG/END delimiters."
+  (with-current-buffer buffer
+    (let ((inhibit-read-only t)
+          (deactivate-mark nil))
+      ;; delete previous region
+      (delete-region beg end)
+      ;; insert the completion at point
+      (insert completion))))
+
+(defun iclj-completion-candidates (output)
+  "Parse completion candidates from the OUTPUT."
+  (let ((candidates (split-string (substring-no-properties output 1 -2) " ")))
+    ;; clear the namespace from the candidates and append it
+    (append
+     (mapcar (lambda (x)
+               (replace-regexp-in-string "^.+/" "" x))
+             candidates)
+     candidates)))
+
+(defun iclj-completion-select (completions)
+  "Select completion from COMPLETIONS."
+  (if (equal completions '("")) ""
+    (completing-read "Complete: "
+                     completions
+                     nil
+                     nil
+                     iclj-completion-initial-input)))
 
 (defun iclj-completion-handler (buffer)
   "Completion response handler.
 Insert completion in the current BUFFER."
   (iclj-comint-with-redirect-output
-   ;; bounds?
-   (when (and iclj-completion-beg
-              iclj-completion-end)
-     ;; redirect buffer has completions?
-     (if (string= output "nil") nil
-       ;; parse completions to a list of string and chose one of them
-       (let ((completions (split-string (substring output 1 -2) " ")))
-         (unless (equal completions '(""))
-           (with-current-buffer buffer
-             ;; insert the completion in the current buffer
-             (iclj-completion-insert iclj-completion-beg
-                                     iclj-completion-end
-                                     (completing-read "Complete: "
-                                                      completions)))))))
-   ;; always reset the beg/end bounds
-   (setq iclj-completion-beg nil
-         iclj-completion-end nil)))
+   ;; region of symbol available?
+   ;; redirect buffer has any completions?
+   (if (or (iclj-completion-bounds-p)
+           (string= output "nil"))
+       nil
+     ;; parse completions to a list of string and chose one of them
+     (let* ((completions (iclj-completion-candidates output))
+            (completion (iclj-completion-select completions)))
+       (unless (string= completion "")
+         (iclj-completion-insert buffer
+                                 iclj-completion-beg
+                                 iclj-completion-end
+                                 completion)))))
+  ;; always reset the beg/end/initial-input vars
+  (iclj-completion-clean-variables))
 
 (provide 'iclj-completion)
 
