@@ -29,7 +29,7 @@
 
 * Goal
 
-  Be a lightweight alternative to ~inf-clojure and
+  Be a lightweight alternative to ~(inf-clojure and
   cider)~ following the *Emacs/Elisp* philosophy.
 
 * Version

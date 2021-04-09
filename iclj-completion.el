@@ -91,7 +91,7 @@ Insert completion in the current BUFFER."
    (when (and iclj-completion-beg
               iclj-completion-end)
      ;; redirect buffer has completions?
-     (if (string= output "nil ") nil
+     (if (string= output "nil") nil
        ;; parse completions to a list of string and chose one of them
        (let ((completions (split-string (substring output 1 -2) " ")))
          (unless (equal completions '(""))
