@@ -73,6 +73,12 @@
 
 (defvar iclj-mode nil)
 
+(defun iclj-mode-setup-font-locks ()
+  "Setup default font locks."
+  (when (require 'clojure-mode nil t)
+    (set (make-local-variable 'font-lock-defaults)
+         '(clojure-font-lock-keywords t))))
+
 ;;;###autoload
 (defun iclj-mode-state ()
   "Show \\{iclj-mode} state, i.e: on or off."
@@ -104,6 +110,8 @@ The following commands are available:
    (iclj-mode
     ;; define iclj menu
     (iclj-define-menu)
+    ;; setup font-locks
+    ;; (iclj-mode-setup-font-locks)
     ;; add delete overlay hook
     (add-hook 'pre-command-hook #'iclj-overlay-delete nil t))
    (t
