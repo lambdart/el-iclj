@@ -36,6 +36,7 @@
 
 (require 'iclj-op)
 (require 'iclj-comint)
+(require 'iclj-overlay)
 
 (defvar iclj-mode-map
   (let ((map (make-sparse-keymap)))
@@ -51,10 +52,10 @@
   "Clojure REPL commands (or operations) keymap.")
 
 (defun iclj-define-menu ()
-  "Define `iclj' minor mode menu."
+  "Define the minor mode menu."
   (easy-menu-define iclj-mode-menu iclj-mode-map
-    "Inferior Clojure Minor Mode Menu"
-    '("Inf-Clojure"
+    "Iclj Minor Mode Menu"
+    '("ICLJ"
       ["Eval region" iclj-op-eval-region t]
       ["Eval buffer" iclj-op-eval-buffer t]
       ["Eval function" iclj-op-eval-defn t]
@@ -73,7 +74,7 @@
 (defvar iclj-mode nil)
 
 ;;;###autoload
-(defun chicken-mode-state ()
+(defun iclj-mode-state ()
   "Show \\{iclj-mode} state, i.e: on or off."
   (interactive)
   (message "iclj-mode %s" (if iclj-mode "on" "off")))
@@ -82,7 +83,7 @@
 (define-minor-mode iclj-mode
   "Minor mode for interacting with the Clojure REPL.
 
-If called interactively, toggle `iclj-mode'.  If the
+If called interactively, toggle \\[iclj-mode].  If the
 prefix argument is positive, enable the mode, and if it is zero
 or negative, disable the mode.
 
@@ -102,14 +103,14 @@ The following commands are available:
   (cond
    (iclj-mode
     ;; define iclj menu
-    (iclj-define-menu))
+    (iclj-define-menu)
     ;; add delete overlay hook
-    ;; (add-hook 'pre-command-hook #'iclj-delete-overlay nil t))
-   (t nil)))
+    (add-hook 'pre-command-hook #'iclj-overlay-delete nil t))
+   (t
     ;; ensure overlay was deleted
-    ;; (iclj-delete-overlay)
+    (iclj-overlay-delete)
     ;; remove delete overlay hook
-    ;; (remove-hook 'pre-command-hook #'iclj-delete-overlay t))))
+    (remove-hook 'pre-command-hook #'iclj-overlay-delete t))))
 
 (provide 'iclj-mode)
 
