@@ -37,7 +37,7 @@
 (require 'comint)
 
 (defgroup iclj-comint nil
-  "Clojure comint utilities."
+  "Iclj comint utilities."
   :prefix "iclj-comint-"
   :group 'iclj-comint)
 
@@ -124,7 +124,7 @@
 (defun iclj-comint-redirect-buffer-content ()
   "Return the redirect-buffer content."
   (with-current-buffer (iclj-comint-redirect-buffer)
-    (buffer-substring-no-properties (point-min) (point-max))))
+    (buffer-string)))
 
 (defun iclj-comint-redirect-completed-p ()
   "Return if the PROC/BUFFER redirecting is over."
@@ -299,11 +299,9 @@ If NO-DISPLAY is non-nil, do not show the output buffer."
     ;;; cache the process buffer (implicit: return it)
     (setq iclj-comint-buffer buffer)))
 
-;; (declare-function 'iclj-op-load-file "iclj-op.el")
-
 (defvar iclj-comint-mode-map
   (let ((map (copy-keymap comint-mode-map)))
-    (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
+    ;; (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
     (define-key map (kbd "C-c C-q") #'iclj-comint-quit)
     map)
   "Extended Comint Mode Map.")
