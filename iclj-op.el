@@ -48,7 +48,7 @@
     (find-doc       . (nil "(clojure.repl/find-doc %S)"))
     (source         . (nil "(clojure.repl/source %s)"))
     (complete       . (iclj-completion-handler "(clojure.repl/apropos %S)"))
-    (apropos        . (nil "(doseq [var (sort (clojure.repl/apropos %S))] (println (str var)))"))
+    (apropos        . (nil "(doseq [v (sort (clojure.repl/apropos %S))] (println (str v)))"))
     (ns-vars        . (nil "(clojure.repl/dir %s)"))
     (set-ns         . (nil "(clojure.core/in-ns '%s)")))
   "Operation associative list: (OP-KEY . (OP-FN OP-FMT).
@@ -57,10 +57,11 @@ OP-RESP-HANDLER, the operation display response function,
 manly used to parse/display the resulting text output.
 OP-FMT-STRING, the operation format string.")
 
-(defun iclj-op-dispatch (op-key input-type &optional echo &rest input)
+(defun iclj-op-dispatch (op-key input-type &optional echo no-display &rest input)
   "Dispatch the operation defined by OP-KEY.
 INPUT-TYPE, the string \"region\" or \"string\".
 If ECHO is non-nil, mirror the output in the comint buffer.
+If NO-DISPLAY is non-nil, don't display the auxiliary output buffer.
 INPUT, the string or the region bounds."
   (let ((op (cdr (assoc op-key iclj-op-alist)))) ; select operation-format
     ;; verify if operation exists in the table
@@ -79,9 +80,9 @@ INPUT, the string or the region bounds."
                ;; from current buffer
                (current-buffer)
                ;; mirror output to comint buffer?
-               (or echo nil)
+               echo
                ;; display output?
-               nil
+               no-display
                ;; format string or send region (beg/end)?
                (if (> (length input) 1) input
                  (list (format op-fmt-string (car input)))))))))
@@ -109,20 +110,25 @@ If PROMPT is non-nil, it will be used as the minibuffer prompt."
     (end-of-defun)
     (let ((end (point)))
       (beginning-of-defun)
-      (iclj-op-dispatch 'eval-last "region" nil (point) end))))
+      (iclj-op-dispatch 'eval-last "region" nil t (point) end))))
 
 (defun iclj-op-eval-sexp (sexp)
   "Eval SEXP string, i.e, send it to Clojure comint process."
   (interactive (iclj-op-minibuffer-read 'sexp "Eval"))
   ;; eval string symbolic expression
-  (iclj-op-dispatch 'eval "string" nil sexp))
+  (iclj-op-dispatch 'eval "string" nil nil sexp))
 
 (defun iclj-op-eval-last-sexp ()
   "Send the previous sexp to the inferior process."
   (interactive)
   ;; send region of the last expression
-  (iclj-op-dispatch 'eval-last-sexp "region" nil
+  (iclj-op-dispatch 'eval-last-sexp "region" nil t
                     (save-excursion (backward-sexp) (point)) (point)))
+
+(defun iclj-op-eval-region (beg end)
+  "Eval BEG/END region."
+  (interactive "r")
+  (iclj-op-dispatch 'eval "region" nil nil beg end))
 
 (defun iclj-op-eval-buffer ()
   "Eval current buffer."
@@ -130,12 +136,15 @@ If PROMPT is non-nil, it will be used as the minibuffer prompt."
   (save-excursion
     (widen)
     (let ((case-fold-search t))
-      (iclj-op-dispatch 'eval "region" nil (point-min) (point-max)))))
+      (iclj-op-dispatch 'eval "region" nil nil (point-min) (point-max)))))
 
-(defun iclj-op-eval-region (beg end)
-  "Eval BEG/END region."
-  (interactive "r")
-  (iclj-op-dispatch 'eval "region" nil beg end))
+(defun iclj-op-eval-file (filename)
+  "Read FILENAME and evaluate it's region contents."
+  (interactive "fFile: ")
+  ;; insert buffer contents and call eval buffer operation
+  (with-temp-buffer
+    (insert-file-contents-literally filename)
+    (iclj-op-eval-buffer)))
 
 (defvar iclj-op-prev-l/c-dir/file nil
   "Caches the last (directory . file) pair.")
@@ -159,7 +168,7 @@ considered a Clojure source file by `iclj-load-file'.")
         (cons (file-name-directory file-name)
               (file-name-nondirectory file-name)))
   ;; load file operation
-  (iclj-op-dispatch 'load "string" nil file-name))
+  (iclj-op-dispatch 'load "string" nil nil file-name))
 
 (defun iclj-op-load-buffer-file-name ()
   "Load current buffer."
@@ -172,41 +181,41 @@ considered a Clojure source file by `iclj-load-file'.")
   "Describe identifier INPUT (string) operation."
   (interactive (iclj-op-minibuffer-read 'sexp "Doc"))
   ;; documentation operation
-  (iclj-op-dispatch 'doc "string" nil input))
+  (iclj-op-dispatch 'doc "string" nil nil input))
 
 (defun iclj-op-find-doc (input)
   "Find INPUT documentation ."
   (interactive (iclj-op-minibuffer-read nil "Doc-dwim"))
   ;; doc-dwin operation
-  (iclj-op-dispatch 'find-doc "string" nil input))
+  (iclj-op-dispatch 'find-doc "string" nil nil input))
 
 (defun iclj-op-apropos (input)
   "Invoke Clojure (apropos INPUT) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Search for"))
   ;; send apropos operation
-  (iclj-op-dispatch 'apropos "string" nil input))
+  (iclj-op-dispatch 'apropos "string" nil nil input))
 
 (defun iclj-op-ns-vars (nsname)
   "Invoke Clojure (dir NSNAME) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Namespace"))
   ;; send ns-vars operation
-  (iclj-op-dispatch 'ns-vars "string" nil nsname))
+  (iclj-op-dispatch 'ns-vars "string" nil nil nsname))
 
 (defun iclj-op-set-ns (name)
   "Invoke Clojure (in-ns NAME) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Name"))
   ;; send set-ns operation
-  (iclj-op-dispatch 'set-ns "string" nil name))
+  (iclj-op-dispatch 'set-ns "string" nil nil name))
 
 (defun iclj-op-source (name)
   "Invoke Clojure (source NAME) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Symbol"))
   ;; send set-ns operation
-  (iclj-op-dispatch 'source "string" nil name))
+  (iclj-op-dispatch 'source "string" nil nil name))
 
 (defun iclj-op-complete ()
   "Invoke Clojure complete operation."
@@ -216,7 +225,7 @@ considered a Clojure source file by `iclj-load-file'.")
   (iclj-completion-set-bounds)
   ;; dispatch the complete operation
   (let ((prefix (iclj-completion-prefix)))
-    (and prefix (iclj-op-dispatch 'complete "string" nil prefix))))
+    (and prefix (iclj-op-dispatch 'complete "string" nil t prefix))))
 
 (provide 'iclj-op)
 
