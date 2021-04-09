@@ -42,13 +42,13 @@
 (defvar iclj-op-alist
   `((input          . (nil "%s"))
     (eval           . (nil "%s"))
-    (eval-last-sexp . (nil "%s"))
+    (eval-last-sexp . (iclj-overlay-handler "%s"))
     (load-file      . (nil "(clojure.core/load-file %S)"))
     (doc            . (nil "(clojure.repl/doc %s)"))
     (find-doc       . (nil "(clojure.repl/find-doc %S)"))
     (source         . (nil "(clojure.repl/source %s)"))
     (complete       . (iclj-completion-handler "(clojure.repl/apropos %S)"))
-    (apropos        . (nil "(doseq [var (sort (clojure.repl/apropos %S))] (println (str var)))"))a
+    (apropos        . (nil "(doseq [var (sort (clojure.repl/apropos %S))] (println (str var)))"))
     (ns-vars        . (nil "(clojure.repl/dir %s)"))
     (set-ns         . (nil "(clojure.core/in-ns '%s)")))
   "Operation associative list: (OP-KEY . (OP-FN OP-FMT).
