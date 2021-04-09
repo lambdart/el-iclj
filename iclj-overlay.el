@@ -36,14 +36,21 @@
 
 (require 'iclj-comint)
 
+(defgroup iclj-overlay nil
+  "Iclj overlay features."
+  :prefix "iclj-overlay-"
+  :group 'iclj-overlay)
+
+(defcustom iclj-overlay-enabled-flag t
+  "Non-nil means the overlay will be displayed in the current clojure buffer."
+  :group 'iclj-overlay
+  :type 'boolean)
+
 (defvar-local iclj-overlay (make-overlay (point-min) (point-min) nil t t)
   "Overlay used to display the process output text.")
 
-(defvar-local iclj-overlay-enabled-flag nil
-  "Non-nil means the overlay is available in the current buffer.")
-
-(defun iclj-overlay-handler (buffer)
-  "Handle the overlay OUTPUT display in the current BUFFER."
+(defun iclj-overlay-display (buffer)
+  "Display overlay in the current BUFFER."
   ;; ensure the redirect buffer exists
   (let ((redirect-buffer (iclj-comint-redirect-buffer))
         (last-line "nil"))
@@ -51,28 +58,33 @@
       (save-excursion
         ;; get the last line
         (with-current-buffer redirect-buffer
-          ;; goto the final of the buffer and move one line up
+          ;; goto the max point of the buffer and move one line up
           (goto-char (point-max))
           (forward-line -1)
-          ;; verify the need of move one line up
+          ;; verify if it's necessary to move one line up
           (and (looking-at-p "nil") (forward-line -1))
           ;; extract the last line
           (let ((beg (point)) end)
             (end-of-line)
             (setq end (point))
-            (setq last-line (buffer-substring-no-properties beg end))))))
-    ;; show overlay with the last-line text in the 'from-buffer'
+            (setq last-line (buffer-substring beg end))))))
+    ;; show last-line text overlay
     (with-current-buffer buffer
       ;; update last line
       (setq last-line (concat " => " last-line))
-      ;; move overlay to the point
+      ;; move overlay to the right point
       (move-overlay iclj-overlay (point) (point) (current-buffer))
       ;; the current C cursor code doesn't know to use the overlay's
       ;; marker's stickiness to figure out whether to place the cursor
       ;; before or after the string, so let's spoon-feed it the pos.
       (put-text-property 0 1 'cursor t last-line)
-      ;; show the overlay text
-      (overlay-put iclj-overlay 'after-string last-line))))
+      ;; put overlay after-string (text) property
+      (overlay-put iclj-overlay 'before-string last-line))))
+
+(defun iclj-overlay-handler (buffer)
+  "Default BUFFER overlay handler."
+  (when iclj-overlay-enabled-flag
+    (iclj-overlay-display buffer)))
 
 (defun iclj-overlay-delete ()
   "Remove `iclj-overlay' display (if any) prior to new user input."
