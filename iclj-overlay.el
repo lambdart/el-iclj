@@ -34,6 +34,8 @@
 ;;
 ;;; Code:
 
+
+(require 'iclj-util)
 (require 'iclj-comint)
 
 (defgroup iclj-overlay nil
@@ -52,22 +54,7 @@
 (defun iclj-overlay-display (buffer)
   "Display overlay in the current BUFFER."
   ;; ensure the redirect buffer exists
-  (let ((redirect-buffer (iclj-comint-redirect-buffer))
-        (last-line "nil"))
-    (unless (not (buffer-live-p redirect-buffer))
-      (save-excursion
-        ;; get the last line
-        (with-current-buffer redirect-buffer
-          ;; goto the max point of the buffer and move one line up
-          (goto-char (point-max))
-          (forward-line -1)
-          ;; verify if it's necessary to move one line up
-          (and (looking-at-p "nil") (forward-line -1))
-          ;; extract the last line
-          (let ((beg (point)) end)
-            (end-of-line)
-            (setq end (point))
-            (setq last-line (buffer-substring beg end))))))
+  (let ((last-line (iclj-util-last-line (iclj-comint-redirect-buffer))))
     ;; show last-line text overlay
     (with-current-buffer buffer
       ;; update last line

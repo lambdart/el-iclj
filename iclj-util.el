@@ -44,7 +44,30 @@
                             (point))))))
     bounds))
 
+(defun iclj-util-valid-buffer-last-line (buffer)
+  "Return a 'valid' last line from BUFFER."
+  (with-current-buffer buffer
+    (save-excursion
+      (widen)
+      ;; go to the end of the buffer
+      (goto-char (point-max))
+      ;; always backward one line
+      (forward-line -1)
+      ;; while not a 'valid' line keep goin' backwards
+      (while (and (> (point) (point-min))
+                  (looking-at-p "nil"))
+        (forward-line -1))
+      ;; return the string that represents the last 'valid' line
+      (buffer-substring-no-properties (point)
+                                      (progn
+                                        (end-of-line) (point))))))
+
+(defun iclj-util-last-line (buffer)
+  "Return the BUFFER last non-nil line."
+  (let ((last-line "nil"))
+    (if (not (buffer-live-p buffer)) last-line
+      (iclj-util-valid-buffer-last-line buffer))))
+
 (provide 'iclj-util)
 
 ;;; iclj-util.el ends here
-
