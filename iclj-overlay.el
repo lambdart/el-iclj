@@ -54,7 +54,7 @@
 (defun iclj-overlay-display (buffer)
   "Display overlay in the current BUFFER."
   ;; ensure the redirect buffer exists
-  (let ((last-line (iclj-util-last-line (iclj-comint-redirect-buffer))))
+  (let ((last-line (iclj-util-last-line (iclj-comint-redirect-buffer) "nil")))
     ;; show last-line text overlay
     (with-current-buffer buffer
       ;; update last line
@@ -66,7 +66,7 @@
       ;; before or after the string, so let's spoon-feed it the pos.
       (put-text-property 0 1 'cursor t last-line)
       ;; put overlay after-string (text) property
-      (overlay-put iclj-overlay 'before-string last-line))))
+      (overlay-put iclj-overlay 'after-string last-line))))
 
 (defun iclj-overlay-handler (buffer)
   "Default BUFFER overlay handler."
