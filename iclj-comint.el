@@ -114,7 +114,8 @@
       iclj-comint-redirect-buffer
     (let ((buffer (get-buffer-create iclj-comint-redirect-buffer-name)))
       (with-current-buffer buffer
-        ;; enable clojure-mode?
+        (setq buffer-read-only t)
+        ;; enable clojure-mode if available
         (and (require 'clojure-mode nil t)
              (fboundp 'clojure-mode)
              (clojure-mode)))
@@ -137,7 +138,7 @@
   (with-current-buffer (iclj-comint-redirect-buffer)
     ;; remove read only protection (just in case)
     (setq buffer-read-only nil)
-    ;; clean the buffer
+    ;; clean buffer
     (erase-buffer)))
 
 (defun iclj-comint-proc ()
@@ -180,6 +181,10 @@
 
 (defun iclj-comint-redirect-dispatch-resp-handler ()
   "Dispatch the display handler callback."
+  ;; restore the ready only property
+  (with-current-buffer (iclj-comint-redirect-buffer)
+    (setq buffer-read-only t))
+  ;; call the response handler
   (when iclj-comint-resp-handler
     (funcall iclj-comint-resp-handler
              iclj-comint-from-buffer)))
@@ -199,8 +204,8 @@
   ;; return the string to the comint buffer (implicit)
   string)
 
-(defun iclj-comint-send (string)
-  "Send STRING, using `comint-send-string' function."
+(defun iclj-comint-send (input)
+  "Send INPUT string, using `comint-send-string' function."
   (let ((proc (iclj-comint-proc)))
     ;; check if the process is alive
     (if (not (process-live-p proc))
@@ -209,8 +214,8 @@
       ;; set progress control variable to true
       (setq iclj-comint-output-cache '("")
             iclj-comint-proc-in-progress t)
-      ;; send string (or region) to the process
-      (comint-send-string proc string)
+      ;; send string to the process
+      (comint-send-string proc input)
       ;; always send a new line: <return> (implicit)
       (comint-send-string proc "\n"))))
 
