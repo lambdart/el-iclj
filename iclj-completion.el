@@ -81,21 +81,20 @@
       ;; insert the completion at point
       (insert completion))))
 
-(defun iclj-completion-candidates (output)
-  "Parse completion candidates from the OUTPUT."
-  (let ((candidates (split-string (substring-no-properties output 1 -2) " ")))
-    ;; clear the namespace from the candidates and append it
-    (append
-     (mapcar (lambda (x)
-               (replace-regexp-in-string "^.+/" "" x))
-             candidates)
-     candidates)))
+(defun iclj-completion-collection (output)
+  "Parse completion collection from the OUTPUT."
+  (let ((collection (split-string (substring-no-properties output 1 -2) " ")))
+    ;; clean name space and append it
+    (append (mapcar (lambda (x)
+                      (replace-regexp-in-string "^.+/" "" x))
+                    collection)
+            collection)))
 
-(defun iclj-completion-select (completions)
-  "Select completion from COMPLETIONS."
-  (if (equal completions '("")) ""
+(defun iclj-completion-read (collection)
+  "Read completion from COLLECTION."
+  (if (equal collection '("")) ""
     (completing-read "Complete: "
-                     completions
+                     collection
                      nil
                      nil
                      iclj-completion-initial-input)))
@@ -110,8 +109,8 @@ Insert completion in the current BUFFER."
            (string= output "nil"))
        nil
      ;; parse completions to a list of string and chose one of them
-     (let* ((completions (iclj-completion-candidates output))
-            (completion (iclj-completion-select completions)))
+     (let ((completion (iclj-completion-read
+                        (iclj-completion-collection output))))
        (unless (string= completion "")
          (iclj-completion-insert buffer
                                  iclj-completion-beg

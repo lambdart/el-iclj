@@ -48,7 +48,7 @@
     (find-doc       . (nil "(clojure.repl/find-doc %S)"))
     (source         . (nil "(clojure.repl/source %s)"))
     (complete       . (iclj-completion-handler "(clojure.repl/apropos %S)"))
-    (apropos        . (nil "(doseq [v (sort (clojure.repl/apropos %S))] (println (str v)))"))
+    (apropos        . (iclj-apropos-handler "(sort (clojure.repl/apropos %S))"))
     (ns-vars        . (nil "(clojure.repl/dir %s)"))
     (set-ns         . (nil "(clojure.core/in-ns '%s)")))
   "Operation associative list: (OP-KEY . (OP-FN OP-FMT).
