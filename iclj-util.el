@@ -34,6 +34,11 @@
 ;;
 ;;; Code:
 
+(defun iclj-util-setup-font-locks ()
+  "Setup default font locks."
+  (when (require 'clojure-mode nil t)
+    (clojure-font-lock-setup)))
+
 (defun iclj-util-bounds-of-thing-at-point ()
   "Return expression bounds at point."
   (if (use-region-p)
