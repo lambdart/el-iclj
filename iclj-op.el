@@ -49,6 +49,8 @@
     (source         . (nil "(clojure.repl/source %s)"))
     (complete       . (iclj-completion-handler "(clojure.repl/apropos %S)"))
     (apropos        . (iclj-apropos-handler "(sort (clojure.repl/apropos %S))"))
+    (macroexpand    . (nil "(clojure.pprint/pprint (clojure.core/macroexpand '%s))"))
+    (macroexpand-1  . (nil "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))"))
     (ns-vars        . (nil "(clojure.repl/dir %s)"))
     (set-ns         . (nil "(clojure.core/in-ns '%s)")))
   "Operation associative list: (OP-KEY . (OP-FN OP-FMT).
@@ -154,28 +156,28 @@ If PROMPT is non-nil, it will be used as the minibuffer prompt."
 If it's loaded into a buffer that is in one of these major modes, it's
 considered a Clojure source file by `iclj-load-file'.")
 
-(defun iclj-op-load-file (file-name)
-  "Load the target FILE-NAME."
+(defun iclj-op-load-file (filename)
+  "Load the target FILENAME."
   (interactive (comint-get-source "File: "
                                   iclj-op-prev-l/c-dir/file
                                   iclj-source-modes t))
   ;; if the file is loaded into a buffer, and the buffer is modified, the user
   ;; is queried to see if he wants to save the buffer before proceeding with
   ;; the load or compile
-  (comint-check-source file-name)
+  (comint-check-source filename)
   ;; cache previous directory/filename
   (setq iclj-op-prev-l/c-dir/file
-        (cons (file-name-directory file-name)
-              (file-name-nondirectory file-name)))
+        (cons (file-name-directory filename)
+              (file-name-nondirectory filename)))
   ;; load file operation
-  (iclj-op-dispatch 'load "string" nil nil file-name))
+  (iclj-op-dispatch 'load "string" nil nil filename))
 
 (defun iclj-op-load-buffer-file-name ()
   "Load current buffer."
   (interactive)
-  (let ((file-name (buffer-file-name)))
+  (let ((filename (buffer-file-name)))
     ;; load file operation
-    (iclj-op-load-file file-name)))
+    (iclj-op-load-file filename)))
 
 (defun iclj-op-doc (input)
   "Describe identifier INPUT (string) operation."
@@ -194,7 +196,7 @@ considered a Clojure source file by `iclj-load-file'.")
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Search for"))
   ;; send apropos operation
-  (iclj-op-dispatch 'apropos "string" nil nil input))
+  (iclj-op-dispatch 'apropos "string" nil t input))
 
 (defun iclj-op-ns-vars (nsname)
   "Invoke Clojure (dir NSNAME) operation."
@@ -214,7 +216,7 @@ considered a Clojure source file by `iclj-load-file'.")
   "Invoke Clojure (source NAME) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Symbol"))
-  ;; send set-ns operation
+  ;; send source operation
   (iclj-op-dispatch 'source "string" nil nil name))
 
 (defun iclj-op-complete ()
@@ -227,6 +229,20 @@ considered a Clojure source file by `iclj-load-file'.")
   (let ((initial-input (iclj-completion-initial-input)))
     (when initial-input
       (iclj-op-dispatch 'complete "string" nil t initial-input))))
+
+(defun iclj-op-macroexpand ()
+  "Invoke Clojure (macroexpand form) operation."
+  (interactive)
+  (let ((form (buffer-substring-no-properties
+               (save-excursion (backward-sexp) (point)) (point))))
+    (iclj-op-dispatch 'macroexpand "string" nil nil form)))
+
+(defun iclj-op-macroexpand-1 ()
+  "Invoke Clojure (macroexpand-1 form) operation."
+  (interactive)
+  (let ((form (buffer-substring-no-properties
+               (save-excursion (backward-sexp) (point)) (point))))
+    (iclj-op-dispatch 'macroexpand-1 "string" nil nil form)))
 
 (provide 'iclj-op)
 
