@@ -46,7 +46,7 @@
 (define-button-type 'iclj-apropos-button
   'face
   'font-lock-keyword-face
-  'help-echo "mouse-2, RET: Display more help on this special form"
+  'help-echo "mouse-2, RET: Display documentation"
   'follow-link t
   'action (lambda (button)
             (iclj-op-doc (button-get button 'symbol))))
