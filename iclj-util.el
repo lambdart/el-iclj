@@ -36,8 +36,9 @@
 
 (defun iclj-util-setup-font-locks ()
   "Setup default font locks."
-  (when (require 'clojure-mode nil t)
-    (clojure-font-lock-setup)))
+  (and (require 'clojure-mode nil t)
+       (fboundp 'clojure-font-lock-setup)
+       (funcall 'clojure-font-lock-setup)))
 
 (defun iclj-util-bounds-of-thing-at-point ()
   "Return expression bounds at point."
