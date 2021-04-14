@@ -39,6 +39,14 @@
 (require 'iclj-comint)
 (require 'iclj-completion)
 
+(defvar iclj-op-eldoc-format
+  "(let [m (clojure.core/meta #'%s)]
+     (flatten
+        (list (str (get m :name))
+              (str (first (get m :arglists)))
+              (get m :doc))))"
+  "Eldoc operation format.")
+
 (defvar iclj-op-alist
   `((input          . (nil "%s"))
     (eval           . (nil "%s"))
@@ -46,9 +54,11 @@
     (load-file      . (nil "(clojure.core/load-file %S)"))
     (doc            . (nil "(clojure.repl/doc %s)"))
     (find-doc       . (nil "(clojure.repl/find-doc %S)"))
+    (eldoc          . (nil ,iclj-op-eldoc-format))
     (source         . (nil "(clojure.repl/source %s)"))
     (complete       . (iclj-completion-handler "(clojure.repl/apropos %S)"))
     (apropos        . (iclj-apropos-handler "(sort (clojure.repl/apropos %S))"))
+    (meta           . (nil "(clojure.pprint/pprint (clojure.core/meta #'%s))"))
     (macroexpand    . (nil "(clojure.pprint/pprint (clojure.core/macroexpand '%s))"))
     (macroexpand-1  . (nil "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))"))
     (ns-vars        . (nil "(clojure.repl/dir %s)"))
@@ -90,20 +100,24 @@ INPUT, the string or the region bounds."
                  (list (format op-fmt-string (car input)))))))))
 
 (defun iclj-op-thing-at-point (&optional thing)
-  "Return the THING at point.
+  "Return THING at point.
 See the documentation of `thing-at-point' to understand what
 thing means."
-  (or (thing-at-point (or thing 'symbol) t) ""))
+  (let* ((thing (or thing 'symbol))
+         (bounds (bounds-of-thing-at-point thing)))
+    (if (not bounds) ""
+      (buffer-substring-no-properties (car bounds)
+                                      (cdr bounds)))))
 
 (defun iclj-op-minibuffer-read (&optional thing prompt)
-  "Read string using the minibuffer facilities.
-If THING is non-nil, it will be used as the minibuffer default parameter.
-If PROMPT is non-nil, it will be used as the minibuffer prompt."
-  (let* ((str (iclj-op-thing-at-point thing))
-         (fmt (if (not str) "%s: " "%s[%s]: "))
-         (prompt (format fmt (or prompt "String") str)))
+  "Read string using minibuffer.
+THING, non-nil means grab thing at point (default).
+PROMPT, non-nil means minibuffer prompt."
+  (let* ((def (iclj-op-thing-at-point thing))
+         (fmt (if (not thing) "%s: " "%s[%s]: "))
+         (prompt (format fmt (or prompt "String") def)))
     ;; return the read list string
-    (list (read-string prompt nil nil str))))
+    (list (read-string prompt nil nil def))))
 
 (defun iclj-op-eval-defn ()
   "Send definition to the Clojure comint process."
@@ -194,21 +208,21 @@ considered a Clojure source file by `iclj-load-file'.")
 (defun iclj-op-apropos (input)
   "Invoke Clojure (apropos INPUT) operation."
   ;; map string function parameter
-  (interactive (iclj-op-minibuffer-read nil "Search for"))
+  (interactive (iclj-op-minibuffer-read nil "Apropos"))
   ;; send apropos operation
   (iclj-op-dispatch 'apropos "string" nil t input))
 
 (defun iclj-op-ns-vars (nsname)
   "Invoke Clojure (dir NSNAME) operation."
   ;; map string function parameter
-  (interactive (iclj-op-minibuffer-read nil "Namespace"))
+  (interactive (iclj-op-minibuffer-read nil "Ns vars"))
   ;; send ns-vars operation
   (iclj-op-dispatch 'ns-vars "string" nil nil nsname))
 
 (defun iclj-op-set-ns (name)
   "Invoke Clojure (in-ns NAME) operation."
   ;; map string function parameter
-  (interactive (iclj-op-minibuffer-read nil "Name"))
+  (interactive (iclj-op-minibuffer-read nil "Set Ns"))
   ;; send set-ns operation
   (iclj-op-dispatch 'set-ns "string" nil nil name))
 
@@ -218,6 +232,18 @@ considered a Clojure source file by `iclj-load-file'.")
   (interactive (iclj-op-minibuffer-read nil "Symbol"))
   ;; send source operation
   (iclj-op-dispatch 'source "string" nil nil name))
+
+(defun iclj-op-meta (symbol)
+  "Invoke Clojure (meta #'SYMBOL) operation."
+  ;; map string function parameter
+  (interactive (iclj-op-minibuffer-read nil "Symbol"))
+  ;; send meta operation
+  (iclj-op-dispatch 'meta "string" nil nil symbol))
+
+(defun iclj-op-eldoc (symbol)
+  "Invoke \\{iclj-op-eldoc-format} operation.
+SYMBOL, clojure symbol that'll be extract the necessary metadata."
+  (iclj-op-dispatch 'eldoc "string" nil nil symbol))
 
 (defun iclj-op-complete ()
   "Invoke Clojure complete operation."
