@@ -45,6 +45,9 @@
     (define-key map (kbd "C-x C-e") #'iclj-op-eval-last-sexp)  ; Gnu convention
     (define-key map (kbd "C-c C-r") #'iclj-op-eval-region)
     (define-key map (kbd "C-c C-b") #'iclj-op-eval-buffer)
+    (define-key map (kbd "C-c C-d") #'iclj-op-doc)
+    (define-key map (kbd "C-c C-f") #'iclj-op-find-doc)
+    (define-key map (kbd "C-c C-a") #'iclj-op-apropos)
     (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
     (define-key map (kbd "C-c C-f") #'iclj-op-load-buffer-file-name)
     (define-key map (kbd "C-c C-q") #'iclj-comint-quit)
