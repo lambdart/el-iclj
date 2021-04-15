@@ -1,4 +1,4 @@
-;;; iclj-overlay.el --- summary -*- lexical-binding: t -*-
+;;; iclj-eval.el --- summary -*- lexical-binding: t -*-
 ;;
 ;; Author: lambdart <lambdart@protonmail.com>
 ;; Maintainer: lambdart
@@ -37,33 +37,28 @@
 
 (require 'iclj-util)
 (require 'iclj-comint)
+(require 'iclj-overlay)
 
-(defgroup iclj-overlay nil
+(defgroup iclj-eval nil
   "Iclj overlay features."
-  :prefix "iclj-overlay-"
-  :group 'iclj-overlay)
+  :prefix "iclj-eval-"
+  :group 'iclj-eval)
 
-(defvar-local iclj-overlay (make-overlay (point-min) (point-min) nil t t)
-  "Overlay used to display the process output text.")
+(defcustom iclj-eval-display-overlay-flag t
+  "Non-nil means display eval output overlay."
+  :group 'iclj-overlay
+  :type 'boolean)
 
-(defun iclj-overlay-display (current-buffer text)
-  "Display overlay with TEXT in the CURRENT-BUFFER."
-  (when (buffer-live-p current-buffer)
-    ;; show last-line text overlay
-    (with-current-buffer current-buffer
-      ;; move overlay to the right point
-      (move-overlay iclj-overlay (point) (point) (current-buffer))
-      ;; the current C cursor code doesn't know to use the overlay's
-      ;; marker's stickiness to figure out whether to place the cursor
-      ;; before or after the string, so let's spoon-feed it the pos.
-      (put-text-property 0 1 'cursor t text)
-      ;; put overlay after-string (text) property
-      (overlay-put iclj-overlay 'after-string text))))
+(defun iclj-eval-handler (current-buffer)
+  "Default CURRENT-BUFFER overlay handler."
+  (when iclj-eval-display-overlay-flag
+    (let ((last-line
+           (iclj-util-last-line
+            (iclj-comint-redirect-buffer "*clojure-eval-output*") "nil")))
+      ;; display overlay with last-line in current buffer
+      (iclj-overlay-display current-buffer
+                            (concat " => " last-line)))))
 
-(defun iclj-overlay-delete ()
-  "Remove `iclj-overlay' display (if any) prior to new user input."
-  (delete-overlay iclj-overlay))
+(provide 'iclj-eval)
 
-(provide 'iclj-overlay)
-
-;;; iclj-overlay.el ends here
+;;; iclj-eval.el ends here
