@@ -108,38 +108,38 @@
 
 (defvar iclj-comint-from-buffer nil)
 
-(defun iclj-comint-redirect-buffer ()
-  "Get or create the \\{iclj-comint-redirect-buffer}."
-  (if (buffer-live-p iclj-comint-redirect-buffer)
-      iclj-comint-redirect-buffer
-    (let ((buffer (get-buffer-create iclj-comint-redirect-buffer-name)))
-      (with-current-buffer buffer
-        (setq buffer-read-only t)
-        ;; enable clojure-mode if available
-        (and (require 'clojure-mode nil t)
-             (fboundp 'clojure-mode)
-             (clojure-mode)))
-      ;; cache and return the buffer
-      (setq iclj-comint-redirect-buffer buffer))))
+(defun iclj-comint-redirect-buffer (buffer-or-name)
+  "Get or create redirect buffer using the specify BUFFER-OR-NAME."
+  (let ((buffer (get-buffer buffer-or-name)))
+    (if (buffer-live-p buffer) buffer
+      (let ((buffer (get-buffer-create buffer-or-name)))
+        (with-current-buffer buffer
+          (setq buffer-read-only t)
+          ;; enable clojure-mode if available
+          (and (require 'clojure-mode nil t)
+               (fboundp 'clojure-mode)
+               (clojure-mode)))
+        ;; return the buffer
+        buffer))))
 
-(defun iclj-comint-redirect-buffer-content ()
-  "Return the redirect-buffer content."
-  (with-current-buffer (iclj-comint-redirect-buffer)
+(defun iclj-comint-redirect-buffer-content (buffer-or-name)
+  "Return the redirect BUFFER-OR-NAME content."
+  (with-current-buffer (iclj-comint-redirect-buffer buffer-or-name)
     (buffer-string)))
+
+(defun iclj-comint-redirect-erase-buffer (buffer-or-name)
+  "Clean redirect buffer specify by BUFFER-OR-NAME."
+  (with-current-buffer (iclj-comint-redirect-buffer buffer-or-name)
+    ;; remove read only protection (just in case)
+    (setq buffer-read-only nil)
+    ;; clean buffer
+    (erase-buffer)))
 
 (defun iclj-comint-redirect-completed-p ()
   "Return if the PROC/BUFFER redirecting is over."
   ;; comint-redirect-completed is local in relation to the comint-buffer
   (with-current-buffer iclj-comint-buffer
     (null comint-redirect-completed)))
-
-(defun iclj-comint-redirect-erase-buffer ()
-  "Clean the redirect buffer."
-  (with-current-buffer (iclj-comint-redirect-buffer)
-    ;; remove read only protection (just in case)
-    (setq buffer-read-only nil)
-    ;; clean buffer
-    (erase-buffer)))
 
 (defun iclj-comint-proc ()
   "Return current comint process."
@@ -167,10 +167,10 @@
     (while iclj-comint-proc-in-progress
       (sleep-for 0 10))))
 
-(defmacro iclj-comint-with-redirect-output (&rest body)
-  "Evaluate the BODY forms with the redirect output."
+(defmacro iclj-comint-with-redirect-output (buffer-or-name &rest body)
+  "Evaluate the BODY after get redirect BUFFER-OR-NAME output."
   ;; extract output from the buffer
-  `(let ((output (iclj-comint-redirect-buffer-content)))
+  `(let ((output (iclj-comint-redirect-buffer-content ,buffer-or-name)))
      ;; update output
      (setq output (if (string= output "") "nil" output))
      ;; evaluate body forms
@@ -179,11 +179,12 @@
      (setq iclj-comint-resp-handler nil
            iclj-comint-from-buffer nil)))
 
+;; restore the ready only property
+;; (with-current-buffer iclj-comint-redirect-buffer
+;;   (setq buffer-read-only t))
+
 (defun iclj-comint-redirect-dispatch-resp-handler ()
   "Dispatch the display handler callback."
-  ;; restore the ready only property
-  (with-current-buffer (iclj-comint-redirect-buffer)
-    (setq buffer-read-only t))
   ;; call the response handler
   (when iclj-comint-resp-handler
     (funcall iclj-comint-resp-handler
@@ -220,17 +221,18 @@
       (comint-send-string proc "\n"))))
 
 (defun iclj-comint-redirect-input-to-process
-    (send-func from-buffer echo &optional no-display &rest input)
+    (send-func from-buffer echo &optional no-display buffer-or-name &rest input)
   "Send INPUT FROM-BUFFER to process using the chosen SEND-FUNC.
-If ECHO is non-nil, output in process buffer.
-If NO-DISPLAY is non-nil, do not show the output buffer."
+ECHO non-nil means, show output in comint process buffer.
+NO-DISPLAY non-nil means, don't display the default output buffer.
+BUFFER-OR-NAME non-nil means, use it as the redirect output buffer (dedicated)."
   (let* ((proc (iclj-comint-proc))
          (proc-buffer (process-buffer proc))
-         (output-buffer (iclj-comint-redirect-buffer)))
+         (output-buffer (iclj-comint-redirect-buffer buffer-or-name)))
     (if (not (buffer-live-p output-buffer))
         (message "[ICLJ]: error, no redirect output buffer available")
-      ;; erase redirect buffer
-      (iclj-comint-redirect-erase-buffer)
+      ;; erase output redirect buffer
+      (iclj-comint-redirect-erase-buffer output-buffer)
       ;; change to the process buffer
       (with-current-buffer proc-buffer
         ;; set up for redirection
