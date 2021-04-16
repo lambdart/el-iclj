@@ -101,7 +101,7 @@ DEFAULT, value to be returned if the last-line isn't found."
 (defun iclj-util-buffer-string (buffer-or-name)
   "Return BUFFER-OR-NAME content."
   (with-current-buffer (iclj-util-get-buffer-create buffer-or-name)
-    (buffer-string)))
+    (buffer-substring-no-properties (point-min) (point-max))))
 
 (defun iclj-util-erase-buffer (buffer-or-name)
   "Delete the entire contents of the buffer specify by BUFFER-OR-NAME."
