@@ -49,7 +49,7 @@
     (load-file      . (:fmt "(clojure.core/load-file %S)"))
     (doc            . (:fmt "(clojure.repl/doc %s)"))
     (find-doc       . (:fmt "(clojure.repl/find-doc %S)"))
-    (eldoc          . (:fun iclj-eldoc-handle :fmt ,iclj-op-eldoc-fmt
+    (eldoc          . (:fun iclj-eldoc-handler :fmt ,iclj-op-eldoc-fmt
                             :buf "*iclj-eldoc*"))
     (apropos        . (:fun iclj-apropos-handler :fmt "(sort (clojure.repl/apropos %S))"
                             :buf "*iclj-apropos*"))
