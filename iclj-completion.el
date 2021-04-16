@@ -103,6 +103,7 @@
   "Completion response handler.
 Insert completion in the current BUFFER."
   (iclj-comint-with-redirect-output
+   "*clojure-completion-output*"
    ;; region of symbol available?
    ;; redirect buffer has any completions?
    (if (or (iclj-completion-bounds-p)

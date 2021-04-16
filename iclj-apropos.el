@@ -71,6 +71,7 @@
 (defun iclj-apropos-handler (_)
   "Apropos operation handler."
   (iclj-comint-with-redirect-output
+   "*clojure-apropos-output*"
    (let ((collection (iclj-apropos-collection output))
          (buffer (iclj-apropos-buffer)))
      (with-current-buffer buffer
