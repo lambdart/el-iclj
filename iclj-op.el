@@ -35,42 +35,11 @@
 ;;; Code:
 
 (require 'iclj-comint)
+(require 'iclj-op-table)
 (require 'iclj-completion)
 
-(defvar iclj-op-eldoc-format
-  "(let [m (clojure.core/meta #'%s)]
-     (flatten
-        (list (str (get m :name))
-              (str (first (get m :arglists)))
-              (get m :doc))))"
-  "Eldoc operation format.")
-
-;; TODO: Represent this information with plist and keywords
-;; TODO: Define another structure
-;; :handler
-;; :format
-;; :buffer-name
-(defvar iclj-op-alist
-  `((input          . (nil "%s" nil))
-    (eval           . (nil "%s" nil))
-    (eval-last-sexp . (iclj-eval-handler "%s" "*clojure-eval-output*"))
-    (load-file      . (nil "(clojure.core/load-file %S)" nil))
-    (doc            . (nil "(clojure.repl/doc %s)" nil))
-    (find-doc       . (nil "(clojure.repl/find-doc %S)" nil))
-    (eldoc          . (iclj-eldoc-handler ,iclj-op-eldoc-format "*clojure-eldoc-output*"))
-    (source         . (nil "(clojure.repl/source %s)" nil))
-    (complete       . (iclj-completion-handler "(clojure.repl/apropos %S)" "*clojure-completion-output*"))
-    (apropos        . (iclj-apropos-handler "(sort (clojure.repl/apropos %S))" "*clojure-apropos-output*"))
-    (meta           . (nil "(clojure.pprint/pprint (clojure.core/meta #'%s))" nil))
-    (macroexpand    . (nil "(clojure.pprint/pprint (clojure.core/macroexpand '%s))" nil))
-    (macroexpand-1  . (nil "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))" nil))
-    (ns-vars        . (nil "(clojure.repl/dir %s)" nil))
-    (set-ns         . (nil "(clojure.core/in-ns '%s)" nil)))
-  "Operation associative list: (OP-KEY . (OP-FN OP-FMT).
-OP-KEY, the operation key selector.
-OP-RESP-HANDLER, the operation display response function,
-manly used to parse/display the resulting text output.
-OP-FMT-STRING, the operation format string.")
+(defvar iclj-op-def-output-buf "*iclj-output*"
+  "Default operation output buffer name.")
 
 (defun iclj-op-dispatch (op-key input-type &optional echo no-display &rest input)
   "Dispatch the operation defined by OP-KEY.
@@ -78,16 +47,15 @@ INPUT-TYPE, the string \"region\" or \"string\".
 If ECHO is non-nil, mirror the output in the comint buffer.
 If NO-DISPLAY is non-nil, don't display the auxiliary output buffer.
 INPUT, the string or the region bounds."
-  (let ((op (cdr (assoc op-key iclj-op-alist)))) ; select operation-format
+  (let ((op-plist (iclj-op-table-get-plist op-key)))
     ;; verify if operation exists in the table
-    (if (not op) (message "Error, operation not found")
+    (if (not op-plist) (message "Error, operation property list not found")
       ;; get its response handler function
-      (let ((op-resp-handler (car op))
-            ;; get its format
-            (op-fmt-string (cadr op))
-            (op-output-buffer (or (caddr op) "*clojure-output*")))
+      (let ((op-fun (plist-get op-plist :fun))
+            (op-fmt (plist-get op-plist :fmt))
+            (op-buf (plist-get op-plist :buf)))
         ;; set comint display function callback and cache the current buffer
-        (setq iclj-comint-resp-handler op-resp-handler
+        (setq iclj-comint-resp-handler op-fun
               iclj-comint-from-buffer (current-buffer))
         ;; send the parsed input to REPL process/buffer
         (apply 'iclj-comint-redirect-input-to-process
@@ -100,10 +68,10 @@ INPUT, the string or the region bounds."
                ;; display output?
                no-display
                ;; dedicated output buffer
-               op-output-buffer
+               (or op-buf iclj-op-def-output-buf)
                ;; format string or send region (beg/end)?
                (if (> (length input) 1) input
-                 (list (format op-fmt-string (car input)))))))))
+                 (list (format op-fmt (car input)))))))))
 
 (defun iclj-op-thing-at-point (&optional thing)
   "Return THING at point.
