@@ -84,6 +84,33 @@ DEFAULT, value to be returned if the last-line isn't found."
       (iclj-util--buffer-last-line buffer regexp)
     (or default "nil")))
 
+(defun iclj-util-get-buffer-create (buffer-or-name)
+  "Get or create redirect buffer using the specify BUFFER-OR-NAME."
+  (let ((buffer (get-buffer buffer-or-name)))
+    (if (buffer-live-p buffer) buffer
+      (let ((buffer (get-buffer-create buffer-or-name)))
+        (with-current-buffer buffer
+          (setq buffer-read-only t)
+          ;; enable clojure-mode if available
+          (and (require 'clojure-mode nil t)
+               (fboundp 'clojure-mode)
+               (clojure-mode)))
+        ;; return the buffer
+        buffer))))
+
+(defun iclj-util-buffer-string (buffer-or-name)
+  "Return BUFFER-OR-NAME content."
+  (with-current-buffer (iclj-util-get-buffer-create buffer-or-name)
+    (buffer-string)))
+
+(defun iclj-util-erase-buffer (buffer-or-name)
+  "Delete the entire contents of the buffer specify by BUFFER-OR-NAME."
+  (with-current-buffer (iclj-util-get-buffer-create buffer-or-name)
+    ;; remove read only protection
+    (setq buffer-read-only nil)
+    ;; clean buffer
+    (erase-buffer)))
+
 (provide 'iclj-util)
 
 ;;; iclj-util.el ends here
