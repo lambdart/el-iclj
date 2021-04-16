@@ -47,7 +47,7 @@
 (defvar iclj-completion-initial-input ""
   "Completion initial input.")
 
-(defun iclj-completion-set-bounds ()
+(defun iclj-completion--setup-bounds ()
   "Set completion bounds."
   (let* ((bounds (iclj-util-bounds-of-thing-at-point))
          (beg (car bounds))
@@ -55,11 +55,13 @@
     (setq iclj-completion-beg beg
           iclj-completion-end end)))
 
-(defun iclj-completion-clean-variables ()
-  "Reset variables."
+(defun iclj-completion-clean-vars ()
+  "Clean internal variables."
   (setq iclj-completion-beg 0
         iclj-completion-end 0
-        iclj-completion-initial-input ""))
+        iclj-completion-initial-input "")
+  ;; delete completions temporary buffer
+  (kill-buffer (iclj-op-table-get-property 'completion :buf)))
 
 (defun iclj-completion-bounds-p ()
   "Bounds predicate."
@@ -67,8 +69,11 @@
 
 (defun iclj-completion-initial-input ()
   "Return or set (implicit) completion initial input."
-  (unless (iclj-completion-bounds-p)
-    (setq iclj-completion-initial-input
+  ;; setup bounds
+  (iclj-completion--setup-bounds)
+  ;; return (implicit) and set the initial input
+  (setq iclj-completion-initial-input
+        (if (iclj-completion-bounds-p) ""
           (buffer-substring-no-properties iclj-completion-beg
                                           iclj-completion-end))))
 
@@ -106,11 +111,8 @@ Insert completion in the current BUFFER."
   (iclj-comint-with-redirect-output
    ;; get completion operation output buffer (comint redirect)
    (iclj-op-table-get-property 'completion :buf)
-   ;; region of symbol available?
    ;; redirect buffer has any completions?
-   (if (or (iclj-completion-bounds-p)
-           (string= output "nil"))
-       nil
+   (if (string= output "()\n") nil
      ;; parse completions to a list of string and chose one of them
      (let ((completion (iclj-completion-read
                         (iclj-completion-collection output))))
@@ -119,8 +121,8 @@ Insert completion in the current BUFFER."
                                  iclj-completion-beg
                                  iclj-completion-end
                                  completion)))))
-  ;; always reset the beg/end/initial-input vars
-  (iclj-completion-clean-variables))
+  ;; clean internal vars
+  (iclj-completion-clean-vars))
 
 (provide 'iclj-completion)
 

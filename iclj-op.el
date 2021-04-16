@@ -220,16 +220,13 @@ INPUT, clojure symbol string that'll be extract the necessary metadata."
   (unless (string= input "")
     (iclj-op-dispatch 'eldoc "string" nil t input)))
 
-(defun iclj-op-complete ()
+(defun iclj-op-completion-at-point ()
   "Invoke Clojure complete operation."
   ;; map string function parameter
   (interactive)
-  ;; set completion bounds (beg/end)
-  (iclj-completion-set-bounds)
   ;; dispatch the complete operation
   (let ((initial-input (iclj-completion-initial-input)))
-    (when initial-input
-      (iclj-op-dispatch 'complete "string" nil t initial-input))))
+    (iclj-op-dispatch 'completion "string" nil t initial-input)))
 
 (defun iclj-op-macroexpand ()
   "Invoke Clojure (macroexpand form) operation."
