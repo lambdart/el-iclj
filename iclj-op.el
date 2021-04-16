@@ -34,8 +34,6 @@
 ;;
 ;;; Code:
 
-(require 'clojure-mode)
-
 (require 'iclj-comint)
 (require 'iclj-completion)
 
@@ -47,22 +45,27 @@
               (get m :doc))))"
   "Eldoc operation format.")
 
+;; TODO: Represent this information with plist and keywords
+;; TODO: Define another structure
+;; :handler
+;; :format
+;; :buffer-name
 (defvar iclj-op-alist
-  `((input          . (nil "%s"))
-    (eval           . (nil "%s"))
-    (eval-last-sexp . (iclj-overlay-handler "%s"))
-    (load-file      . (nil "(clojure.core/load-file %S)"))
-    (doc            . (nil "(clojure.repl/doc %s)"))
-    (find-doc       . (nil "(clojure.repl/find-doc %S)"))
-    (eldoc          . (nil ,iclj-op-eldoc-format))
-    (source         . (nil "(clojure.repl/source %s)"))
-    (complete       . (iclj-completion-handler "(clojure.repl/apropos %S)"))
-    (apropos        . (iclj-apropos-handler "(sort (clojure.repl/apropos %S))"))
-    (meta           . (nil "(clojure.pprint/pprint (clojure.core/meta #'%s))"))
-    (macroexpand    . (nil "(clojure.pprint/pprint (clojure.core/macroexpand '%s))"))
-    (macroexpand-1  . (nil "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))"))
-    (ns-vars        . (nil "(clojure.repl/dir %s)"))
-    (set-ns         . (nil "(clojure.core/in-ns '%s)")))
+  `((input          . (nil "%s" nil))
+    (eval           . (nil "%s" nil))
+    (eval-last-sexp . (iclj-eval-handler "%s" "*clojure-eval-output*"))
+    (load-file      . (nil "(clojure.core/load-file %S)" nil))
+    (doc            . (nil "(clojure.repl/doc %s)" nil))
+    (find-doc       . (nil "(clojure.repl/find-doc %S)" nil))
+    (eldoc          . (iclj-eldoc-handler ,iclj-op-eldoc-format "*clojure-eldoc-output*"))
+    (source         . (nil "(clojure.repl/source %s)" nil))
+    (complete       . (iclj-completion-handler "(clojure.repl/apropos %S)" "*clojure-completion-output*"))
+    (apropos        . (iclj-apropos-handler "(sort (clojure.repl/apropos %S))" "*clojure-apropos-output*"))
+    (meta           . (nil "(clojure.pprint/pprint (clojure.core/meta #'%s))" nil))
+    (macroexpand    . (nil "(clojure.pprint/pprint (clojure.core/macroexpand '%s))" nil))
+    (macroexpand-1  . (nil "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))" nil))
+    (ns-vars        . (nil "(clojure.repl/dir %s)" nil))
+    (set-ns         . (nil "(clojure.core/in-ns '%s)" nil)))
   "Operation associative list: (OP-KEY . (OP-FN OP-FMT).
 OP-KEY, the operation key selector.
 OP-RESP-HANDLER, the operation display response function,
@@ -81,7 +84,8 @@ INPUT, the string or the region bounds."
       ;; get its response handler function
       (let ((op-resp-handler (car op))
             ;; get its format
-            (op-fmt-string (cadr op)))
+            (op-fmt-string (cadr op))
+            (op-output-buffer (or (caddr op) "*clojure-output*")))
         ;; set comint display function callback and cache the current buffer
         (setq iclj-comint-resp-handler op-resp-handler
               iclj-comint-from-buffer (current-buffer))
@@ -95,6 +99,8 @@ INPUT, the string or the region bounds."
                echo
                ;; display output?
                no-display
+               ;; dedicated output buffer
+               op-output-buffer
                ;; format string or send region (beg/end)?
                (if (> (length input) 1) input
                  (list (format op-fmt-string (car input)))))))))
@@ -212,26 +218,26 @@ considered a Clojure source file by `iclj-load-file'.")
   ;; send apropos operation
   (iclj-op-dispatch 'apropos "string" nil t input))
 
-(defun iclj-op-ns-vars (nsname)
-  "Invoke Clojure (dir NSNAME) operation."
+(defun iclj-op-ns-vars (input)
+  "Invoke Clojure (dir INPUT) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Ns vars"))
   ;; send ns-vars operation
-  (iclj-op-dispatch 'ns-vars "string" nil nil nsname))
+  (iclj-op-dispatch 'ns-vars "string" nil nil input))
 
-(defun iclj-op-set-ns (name)
-  "Invoke Clojure (in-ns NAME) operation."
+(defun iclj-op-set-ns (input)
+  "Invoke Clojure (in-ns INPUT) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Set Ns"))
   ;; send set-ns operation
-  (iclj-op-dispatch 'set-ns "string" nil nil name))
+  (iclj-op-dispatch 'set-ns "string" nil nil input))
 
-(defun iclj-op-source (name)
-  "Invoke Clojure (source NAME) operation."
+(defun iclj-op-source (input)
+  "Invoke Clojure (source INPUT) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Symbol"))
   ;; send source operation
-  (iclj-op-dispatch 'source "string" nil nil name))
+  (iclj-op-dispatch 'source "string" nil nil input))
 
 (defun iclj-op-meta (symbol)
   "Invoke Clojure (meta #'SYMBOL) operation."
@@ -240,10 +246,11 @@ considered a Clojure source file by `iclj-load-file'.")
   ;; send meta operation
   (iclj-op-dispatch 'meta "string" nil nil symbol))
 
-(defun iclj-op-eldoc (symbol)
+(defun iclj-op-eldoc (input)
   "Invoke \\{iclj-op-eldoc-format} operation.
-SYMBOL, clojure symbol that'll be extract the necessary metadata."
-  (iclj-op-dispatch 'eldoc "string" nil nil symbol))
+INPUT, clojure symbol string that'll be extract the necessary metadata."
+  (unless (string= input "")
+    (iclj-op-dispatch 'eldoc "string" nil t input)))
 
 (defun iclj-op-complete ()
   "Invoke Clojure complete operation."
