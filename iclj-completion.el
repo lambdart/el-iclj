@@ -55,17 +55,18 @@
     (setq iclj-completion-beg beg
           iclj-completion-end end)))
 
-(defun iclj-completion-clean-vars ()
-  "Clean internal variables."
+(defun iclj-completion-clean (output-buffer)
+  "Clean internal variables and kill OUTPUT-BUFFER."
   (setq iclj-completion-beg 0
         iclj-completion-end 0
         iclj-completion-initial-input "")
   ;; delete completions temporary buffer
-  (kill-buffer (iclj-op-table-get-property 'completion :buf)))
+  (kill-buffer output-buffer))
 
 (defun iclj-completion-bounds-p ()
   "Bounds predicate."
-  (= iclj-completion-beg iclj-completion-end))
+  (= iclj-completion-beg
+     iclj-completion-end))
 
 (defun iclj-completion-initial-input ()
   "Return or set (implicit) completion initial input."
@@ -108,21 +109,22 @@
 (defun iclj-completion-handler (buffer)
   "Completion response handler.
 Insert completion in the current BUFFER."
-  (iclj-comint-with-redirect-output
-   ;; get completion operation output buffer (comint redirect)
-   (iclj-op-table-get-property 'completion :buf)
-   ;; redirect buffer has any completions?
-   (if (string= output "()\n") nil
-     ;; parse completions to a list of string and chose one of them
-     (let ((completion (iclj-completion-read
-                        (iclj-completion-collection output))))
-       (unless (string= completion "")
-         (iclj-completion-insert buffer
-                                 iclj-completion-beg
-                                 iclj-completion-end
-                                 completion)))))
-  ;; clean internal vars
-  (iclj-completion-clean-vars))
+  (let ((output-buffer (iclj-op-table-get-property 'completion :buf)))
+    (iclj-comint-with-redirect-output
+     ;; get completion operation output buffer (comint redirect)
+     output-buffer
+     ;; redirect buffer has any completions?
+     (if (string= output "()\n") nil
+       ;; parse completions to a list of string and chose one of them
+       (let ((completion (iclj-completion-read
+                          (iclj-completion-collection output))))
+         (unless (string= completion "")
+           (iclj-completion-insert buffer
+                                   iclj-completion-beg
+                                   iclj-completion-end
+                                   completion)))))
+    ;; clean internal vars and kill output buffer
+    (iclj-completion-clean output-buffer)))
 
 (provide 'iclj-completion)
 
