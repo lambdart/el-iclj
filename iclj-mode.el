@@ -109,7 +109,7 @@ The following commands are available:
     ;; define iclj menu
     (iclj-define-menu)
     ;; add autodoc hook
-    ;; (add-hook 'eldoc-documentation-functions #'iclj-eldoc-function nil t)
+    (add-hook 'eldoc-documentation-functions #'iclj-eldoc-function nil t)
     ;; add delete overlay hook
     (add-hook 'pre-command-hook #'iclj-overlay-delete nil t))
    (t
