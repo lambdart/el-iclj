@@ -49,6 +49,16 @@
         (cons (point)
               (point)))))
 
+(defun iclj-util-thing-at-point (&optional thing)
+  "Return THING at point.
+See the documentation of `thing-at-point' to understand what
+thing means."
+  (let* ((thing (or thing 'symbol))
+         (bounds (bounds-of-thing-at-point thing)))
+    (if (not bounds) ""
+      (buffer-substring-no-properties (car bounds)
+                                      (cdr bounds)))))
+
 (defun iclj-util--buffer-last-line (buffer regexp)
   "Return the BUFFER last line determined by REGEXP pattern."
   (with-current-buffer buffer
