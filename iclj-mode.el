@@ -35,6 +35,7 @@
 ;;; Code:
 
 (require 'iclj-op)
+(require 'iclj-eldoc)
 (require 'iclj-comint)
 (require 'iclj-overlay)
 
@@ -107,11 +108,15 @@ The following commands are available:
    (iclj-mode
     ;; define iclj menu
     (iclj-define-menu)
+    ;; add autodoc hook
+    ;; (add-hook 'eldoc-documentation-functions #'iclj-eldoc-function nil t)
     ;; add delete overlay hook
     (add-hook 'pre-command-hook #'iclj-overlay-delete nil t))
    (t
     ;; ensure overlay was deleted
     (iclj-overlay-delete)
+    ;; remove autodoc hook
+    (remove-hook 'eldoc-documentation-functions #'iclj-eldoc-function t)
     ;; remove delete overlay hook
     (remove-hook 'pre-command-hook #'iclj-overlay-delete t))))
 
