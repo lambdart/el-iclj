@@ -36,6 +36,7 @@
 
 (require 'button)
 (require 'iclj-op)
+(require 'iclj-op-table)
 
 (defvar iclj-apropos-buffer-name "clojure-apropos"
   "Apropos buffer name.")
@@ -71,7 +72,9 @@
 (defun iclj-apropos-handler (_)
   "Apropos operation handler."
   (iclj-comint-with-redirect-output
-   "*clojure-apropos-output*"
+   ;; get apropos operation (comint redirect) output buffer
+   (iclj-op-table-get-property 'apropos :buf)
+   ;; parse collection and insert into apropos-buffer
    (let ((collection (iclj-apropos-collection output))
          (buffer (iclj-apropos-buffer)))
      (with-current-buffer buffer

@@ -36,6 +36,7 @@
 
 (require 'iclj-util)
 (require 'iclj-comint)
+(require 'iclj-op-table)
 
 (defvar iclj-completion-beg 0
   "Begging of the completion prefix candidate (region related).")
@@ -103,7 +104,8 @@
   "Completion response handler.
 Insert completion in the current BUFFER."
   (iclj-comint-with-redirect-output
-   "*clojure-completion-output*"
+   ;; get completion operation output buffer (comint redirect)
+   (iclj-op-table-get-property 'completion :buf)
    ;; region of symbol available?
    ;; redirect buffer has any completions?
    (if (or (iclj-completion-bounds-p)

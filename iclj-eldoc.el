@@ -37,6 +37,7 @@
 (require 'iclj-op)
 (require 'iclj-util)
 (require 'iclj-comint)
+(require 'iclj-op-table)
 
 (defun iclj-eldoc-beginning-of-sexp ()
   "Move to the beginning of current sexp."
@@ -84,7 +85,10 @@ about the context around point."
 
 (defun iclj-eldoc-handler (_)
   "Eldoc function handler."
-  (iclj-comint-with-redirect-output "*clojure-eldoc-output*"
+  (iclj-comint-with-redirect-output
+   ;; get eldoc operation output buffer
+   (iclj-op-table-get-property 'eldoc :buf)
+   ;; parse output and display into echo area
    (let ((docs (read output)))
      (funcall iclj-eldoc-callback
               (mapconcat (lambda (x) x) docs " ")))))

@@ -38,6 +38,7 @@
 (require 'iclj-util)
 (require 'iclj-comint)
 (require 'iclj-overlay)
+(require 'iclj-op-table)
 
 (defgroup iclj-eval nil
   "Iclj overlay features."
@@ -52,9 +53,9 @@
 (defun iclj-eval-handler (current-buffer)
   "Default CURRENT-BUFFER overlay handler."
   (when iclj-eval-display-overlay-flag
-    (let ((last-line
-           (iclj-util-last-line
-            (iclj-comint-redirect-buffer "*clojure-eval-output*") "nil")))
+    (let* ((output-buffer (iclj-op-table-get-property 'eval-last-sexp :buf))
+           (last-line (iclj-util-last-line
+                       (iclj-comint-redirect-buffer output-buffer) "nil")))
       ;; display overlay with last-line in current buffer
       (iclj-overlay-display current-buffer
                             (concat " => " last-line)))))
