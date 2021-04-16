@@ -39,39 +39,58 @@
 (require 'iclj-comint)
 (require 'iclj-op-table)
 
+;; from elisp-mode.el.gz
 (defun iclj-eldoc-beginning-of-sexp ()
-  "Move to the beginning of current sexp."
-  (let ((parse-sexp-ignore-comments t))
+  "Move to the beginning of current sexp.
+Return the number of nested sexp the point was over or after."
+  (let ((parse-sexp-ignore-comments t)
+        (num-skipped-sexps 0))
     (condition-case _
         (progn
           ;; First account for the case the point is directly over a
           ;; beginning of a nested sexp.
           (condition-case _
-              (forward-sexp -1)
-            (forward-sexp 1)
+              (let ((p (point)))
+                (forward-sexp -1)
+                (forward-sexp 1)
+                (when (< (point) p)
+                  (setq num-skipped-sexps 1)))
             (error))
-          (while (forward-sexp -1)))
-      (error))))
+          (while
+              (let ((p (point)))
+                (forward-sexp -1)
+                (when (< (point) p)
+                  (setq num-skipped-sexps (1+ num-skipped-sexps))))))
+      (error))
+    num-skipped-sexps))
 
-(defun inf-clojure-eldoc-top-symbol ()
-  "Return top most symbol of the current s-expression."
+(defun iclj-eldoc-fnsym ()
+  "Return function symbol from current sexp."
   (save-excursion
     ;; goes to the beginning of the s-expression
     (iclj-eldoc-beginning-of-sexp)
-    ;; get symbol at point
-    (let ((thing (iclj-util-thing-at-point)))
-      thing)))
+    ;; don't do anything if current word is inside a string, vector,
+    ;; hash or set literal. (with the compliments of inf-clojure :))
+    (if (member (or (char-after (1- (point))) 0) '(?\" ?\{ ?\[)) ""
+      (or (thing-at-point 'symbol) ""))))
 
 (defvar iclj-eldoc-callback nil
-  "Eldoc cached callback.")
+  "Eldoc cached callback function.")
+
+(defun iclj-eldoc-clean (output-buffer)
+  "Clean internal variables and operation OUTPUT-BUFFER."
+  ;; reset callback function
+  (setq iclj-eldoc-callback nil)
+  ;; kill output buffer
+  (kill-buffer output-buffer))
 
 (defun iclj-eldoc-function (callback &rest _ignored)
   "Clojure documentation function.
 Each hook function is called with at least one argument CALLBACK,
 a function, and decides whether to display a doc short string
 about the context around point."
-  (let ((thing (inf-clojure-eldoc-top-symbol)))
-    (if (string= thing "") nil
+  (let ((thing (iclj-eldoc-fnsym)))
+    (unless (string= thing "")
       ;; call the eldoc operation
       (iclj-op-eldoc thing)
       ;; cache eldoc callback
@@ -83,15 +102,33 @@ about the context around point."
       ;; using asynchronous processes or other asynchronous mechanisms.
       0)))
 
+(defun iclj-eldoc-parse-doc-string (doc)
+  "Parse DOC string.
+Meta output documentation field."
+  (if (not doc) ""
+    (let ((docstring (replace-regexp-in-string "\n" "" doc)))
+      (replace-regexp-in-string "  " " " docstring))))
+
 (defun iclj-eldoc-handler (_)
   "Eldoc function handler."
-  (iclj-comint-with-redirect-output
-   ;; get eldoc operation output buffer
-   (iclj-op-table-get-property 'eldoc :buf)
-   ;; parse output and display into echo area
-   (let ((docs (read output)))
-     (funcall iclj-eldoc-callback
-              (mapconcat (lambda (x) x) docs " ")))))
+  (let ((output-buffer (iclj-op-table-get-property 'eldoc :buf)))
+    (iclj-comint-with-redirect-output
+     ;; get eldoc operation output buffer
+     output-buffer
+     ;; parse output and display into echo area
+     (let ((meta (read output)))
+       (when (listp meta)
+         (let ((fnsym (car meta))
+               (args (cadr meta))
+               (docs (caddr meta)))
+           ;; check and invoke callback function
+           (when (functionp iclj-eldoc-callback)
+             (funcall iclj-eldoc-callback
+                      (concat args " " (iclj-eldoc-parse-doc-string docs))
+                      :thing fnsym
+                      :face font-lock-function-name-face))))))
+    ;; clean variables and kill output buffer
+    (iclj-eldoc-clean output-buffer)))
 
 (provide 'iclj-eldoc)
 
