@@ -55,7 +55,7 @@ INPUT, the string or the region bounds."
             (op-fmt (plist-get op-plist :fmt))
             (op-buf (plist-get op-plist :buf)))
         ;; set comint display function callback and cache the current buffer
-        (setq iclj-comint-resp-handler op-fun
+        (setq iclj-comint-redirect-handler op-fun
               iclj-comint-from-buffer (current-buffer))
         ;; send the parsed input to REPL process/buffer
         (apply 'iclj-comint-redirect-input-to-process
