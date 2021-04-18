@@ -52,11 +52,6 @@
   :group 'iclj-comint
   :type 'string)
 
-(defcustom iclj-debug-buffer-name "*CLOJURE-DEBUG*"
-  "Debug buffer name for the inferior process output."
-  :group 'iclj-comint
-  :type 'string)
-
 (defcustom iclj-comint-prompt-regexp "^\\( *#_\\|[^=> \n]+\\)=> *"
   "Regexp to recognize prompt."
   :group 'iclj-comint
@@ -67,12 +62,12 @@
   :group 'iclj-comint
   :type 'regexp)
 
-(defcustom iclj-comint-program (executable-find "clojure")
+(defcustom iclj-comint-program "clojure"
   "Clojure executable full path program."
   :group 'iclj-comint
   :type 'file
   :set `(lambda (symbol value)
-          (set symbol (executable-find value))))
+          (set symbol (or (executable-find value) value))))
 
 (defcustom iclj-comint-program-args '("-r")
   "Command-line arguments to pass to `iclj-comint-program'."
@@ -93,15 +88,14 @@
 (defvar iclj-comint-output-cache '("")
   "Comint output filtered text list.")
 
-(defvar iclj-comint-last-output ""
-  "Process (cache) last output line.")
-
 (defvar iclj-comint-proc-in-progress nil
   "Indicates if the comint filter function is still in progress.")
 
-(defvar iclj-comint-resp-handler nil)
+(defvar iclj-comint-redirect-handler nil
+  "Redirect function handler (callback).")
 
-(defvar iclj-comint-from-buffer nil)
+(defvar iclj-comint-from-buffer nil
+  "Previous current buffer.")
 
 (defun iclj-comint-redirect-completed-p ()
   "Return if the PROC/BUFFER redirecting is over."
@@ -144,14 +138,14 @@
      ;; evaluate body forms
      ,@body
      ;; clean display function
-     (setq iclj-comint-resp-handler nil
+     (setq iclj-comint-redirect-handler nil
            iclj-comint-from-buffer nil)))
 
-(defun iclj-comint-redirect-dispatch-resp-handler ()
-  "Dispatch the display handler callback."
+(defun iclj-comint-redirect-dispatch-handler ()
+  "Dispatch response function handler."
   ;; call the response handler
-  (when iclj-comint-resp-handler
-    (funcall iclj-comint-resp-handler
+  (when iclj-comint-redirect-handler
+    (funcall iclj-comint-redirect-handler
              iclj-comint-from-buffer)))
 
 (defun iclj-comint-cache-output ()
@@ -249,26 +243,31 @@ BUFFER-OR-NAME non-nil means, use it as the redirect output buffer (dedicated)."
 (defun iclj-comint-run ()
   "Run an inferior instance of Clojure REPL inside Emacs."
   (interactive)
-  (let ((buffer (apply 'make-comint
-                       iclj-comint-buffer-name
-                       iclj-comint-program
-                       iclj-comint-start-file
-                       iclj-comint-program-args)))
-    (unless buffer
-      (error "[ICLJ]: Error, start process %s: fails"
-             iclj-comint-program))
-    ;; check comint process
-    (comint-check-proc buffer)
-    ;; set process sentinel
-    (set-process-sentinel (get-buffer-process buffer)
-                          'iclj-comint-proc-sentinel)
-    ;; start clojure comint mode
-    (with-current-buffer buffer
-      (iclj-comint-mode))
-    ;; display buffer
-    (display-buffer buffer 'display-buffer-pop-up-window)
-    ;;; cache the process buffer (implicit: return it)
-    (setq iclj-comint-buffer buffer)))
+  (let ((program (executable-find iclj-comint-program)))
+    ;; throw an error if program doesn't exists
+    (unless program
+      (error "[ICLJ]: Error, comint-program not found"))
+    ;; else continue
+    (let ((buffer (apply 'make-comint
+                         iclj-comint-buffer-name
+                         program
+                         iclj-comint-start-file
+                         iclj-comint-program-args)))
+      ;; check if the buffer was properly created
+      (unless buffer
+        (error "[ICLJ]: Error, start process %s: fails" iclj-comint-program))
+      ;; check comint process
+      (comint-check-proc buffer)
+      ;; set process sentinel
+      (set-process-sentinel (get-buffer-process buffer)
+                            'iclj-comint-proc-sentinel)
+      ;; start clojure comint mode
+      (with-current-buffer buffer
+        (iclj-comint-mode))
+      ;; display buffer
+      (display-buffer buffer 'display-buffer-pop-up-window)
+      ;; cache the process buffer (implicit: return it)
+      (setq iclj-comint-buffer buffer))))
 
 (defvar iclj-comint-mode-map
   (let ((map (copy-keymap comint-mode-map)))
@@ -302,7 +301,7 @@ The following commands are available:
   (customize-set-variable 'comint-redirect-verbose t)
   ;; add dispatch display handler hook
   (add-hook 'comint-redirect-hook
-            #'iclj-comint-redirect-dispatch-resp-handler)
+            #'iclj-comint-redirect-dispatch-handler)
   ;; set local paragraph variables
   (set (make-local-variable 'paragraph-separate) "\\'")
   (set (make-local-variable 'paragraph-start) iclj-comint-prompt-regexp))
