@@ -34,7 +34,6 @@
 ;;
 ;;; Code:
 
-
 (require 'iclj-util)
 (require 'iclj-comint)
 (require 'iclj-overlay)
@@ -55,7 +54,7 @@
   (when iclj-eval-display-overlay-flag
     (let* ((output-buffer (iclj-op-table-get-property 'eval-last-sexp :buf))
            (last-line (iclj-util-last-line
-                       (iclj-comint-redirect-buffer output-buffer) "nil")))
+                       (iclj-util-get-buffer-create output-buffer) "nil")))
       ;; display overlay with last-line in current buffer
       (iclj-overlay-display current-buffer
                             (concat " => " last-line)))))
