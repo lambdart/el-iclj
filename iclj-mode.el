@@ -41,6 +41,7 @@
 
 (defvar iclj-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "<tab>")   #'iclj-op-completion-at-point)
     (define-key map (kbd "C-M-x")   #'iclj-op-eval-defn) ; Gnu convention
     (define-key map (kbd "C-c C-e") #'iclj-op-eval-last-sexp)
     (define-key map (kbd "C-x C-e") #'iclj-op-eval-last-sexp)  ; Gnu convention
