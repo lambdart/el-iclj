@@ -35,6 +35,8 @@
 ;;; Code:
 
 (require 'comint)
+
+(require 'iclj-op)
 (require 'iclj-util)
 
 (defgroup iclj-comint nil
@@ -105,11 +107,15 @@
 
 (defun iclj-comint-proc ()
   "Return current comint process."
+  ;; get the process (first try)
   (let ((proc (get-buffer-process
                (and (buffer-live-p iclj-comint-buffer)
                     iclj-comint-buffer))))
-    (if (process-live-p proc) proc
-      (get-buffer-process (iclj-comint-run)))))
+    ;; if we don't have a live process create it
+    (if (not (process-live-p proc))
+        (get-buffer-process (iclj-comint-run iclj-comint-program))
+      ;; otherwise return it
+      proc)))
 
 (defun iclj-comint-proc-sentinel (process event)
   "Sentinel function to handle (PROCESS EVENT) relation."
@@ -240,38 +246,40 @@ BUFFER-OR-NAME non-nil means, use it as the redirect output buffer (dedicated)."
   (kill-buffer iclj-comint-buffer))
 
 ;;;###autoload
-(defun iclj-comint-run ()
-  "Run an inferior instance of Clojure REPL inside Emacs."
-  (interactive)
-  (let ((program (executable-find iclj-comint-program)))
-    ;; throw an error if program doesn't exists
-    (unless program
-      (error "[ICLJ]: Error, comint-program not found"))
-    ;; else continue
-    (let ((buffer (apply 'make-comint
-                         iclj-comint-buffer-name
-                         program
-                         iclj-comint-start-file
-                         iclj-comint-program-args)))
-      ;; check if the buffer was properly created
-      (unless buffer
-        (error "[ICLJ]: Error, start process %s: fails" iclj-comint-program))
-      ;; check comint process
-      (comint-check-proc buffer)
-      ;; set process sentinel
-      (set-process-sentinel (get-buffer-process buffer)
-                            'iclj-comint-proc-sentinel)
-      ;; start clojure comint mode
-      (with-current-buffer buffer
-        (iclj-comint-mode))
-      ;; display buffer
-      (display-buffer buffer 'display-buffer-pop-up-window)
-      ;; cache the process buffer (implicit: return it)
-      (setq iclj-comint-buffer buffer))))
+(defun iclj-comint-run (program &optional switches)
+  "Run an inferior instance of Clojure REPL PROGRAM inside Emacs.
+If SWITCHES are supplied, they are passed to PROGRAM.  With prefix argument
+\\[universal-argument] prompt for SWITCHES as well as PROGRAM."
+  ;; map function arguments
+  (interactive
+   (list (read-string "Run program: ")
+         (and (consp current-prefix-arg)
+              (split-string-and-unquote (read-string "Switches: ")))))
+  ;; make comint process buffer
+  (let ((buffer (apply 'make-comint
+                       iclj-comint-buffer-name
+                       program
+                       iclj-comint-start-file
+                       (or switches iclj-comint-program-args))))
+    ;; check if the buffer was properly created
+    (unless buffer
+      (error "[ICLJ]: Error, start process %s: fails" iclj-comint-program))
+    ;; check comint process
+    (comint-check-proc buffer)
+    ;; set process sentinel
+    (set-process-sentinel (get-buffer-process buffer)
+                          'iclj-comint-proc-sentinel)
+    ;; start clojure comint mode
+    (with-current-buffer buffer
+      (iclj-comint-mode))
+    ;; display buffer
+    (display-buffer buffer 'display-buffer-pop-up-window)
+    ;; cache the process buffer (implicit: return it)
+    (setq iclj-comint-buffer buffer)))
 
 (defvar iclj-comint-mode-map
   (let ((map (copy-keymap comint-mode-map)))
-    ;; (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
+    (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
     (define-key map (kbd "C-c C-q") #'iclj-comint-quit)
     map)
   "Extended Comint Mode Map.")
