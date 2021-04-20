@@ -91,16 +91,17 @@ a function, and decides whether to display a doc short string
 about the context around point."
   (let ((thing (iclj-eldoc-fnsym)))
     (unless (string= thing "")
-      ;; call the eldoc operation
-      (iclj-op-eldoc thing)
-      ;; cache eldoc callback
-      (setq iclj-eldoc-callback callback)
-      ;; - If the computation of said doc string (or the decision whether
-      ;; there is one at all) is expensive or can’t be performed
-      ;; directly, the hook function should return a non-nil, non-string
-      ;; value and arrange for CALLBACK to be called at a later time,
-      ;; using asynchronous processes or other asynchronous mechanisms.
-      0)))
+      ;; call the eldoc operations
+      (when (buffer-live-p iclj-comint-buffer)
+        (iclj-op-eldoc thing)
+        ;; cache eldoc callback
+        (setq iclj-eldoc-callback callback)
+        ;; - If the computation of said doc string (or the decision whether
+        ;; there is one at all) is expensive or can't be performed
+        ;; directly, the hook function should return a non-nil, non-string
+        ;; value and arrange for CALLBACK to be called at a later time,
+        ;; using asynchronous processes or other asynchronous mechanisms.
+        0))))
 
 (defun iclj-eldoc-parse-doc-string (doc)
   "Parse DOC string.
