@@ -92,7 +92,7 @@ about the context around point."
   (let ((thing (iclj-eldoc-fnsym)))
     (unless (string= thing "")
       ;; call the eldoc operations
-      (when (buffer-live-p iclj-comint-buffer)
+      (when (process-live-p (get-buffer-process iclj-comint-buffer))
         (iclj-op-eldoc thing)
         ;; cache eldoc callback
         (setq iclj-eldoc-callback callback)
