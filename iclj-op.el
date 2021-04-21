@@ -112,7 +112,7 @@ PROMPT, non-nil means minibuffer prompt."
   "Send the previous sexp to the inferior process."
   (interactive)
   ;; send region of the last expression
-  (iclj-op-dispatch 'eval-last-sexp "region" nil t
+  (iclj-op-dispatch 'eval-last-sexp "region" nil nil
                     (save-excursion (backward-sexp) (point)) (point)))
 
 (defun iclj-op-eval-region (beg end)
@@ -158,7 +158,7 @@ considered a Clojure source file by `iclj-load-file'.")
         (cons (file-name-directory filename)
               (file-name-nondirectory filename)))
   ;; load file operation
-  (iclj-op-dispatch 'load "string" nil nil filename))
+  (iclj-op-dispatch 'load-file "string" nil nil filename))
 
 (defun iclj-op-load-buffer-file-name ()
   "Load current buffer."
@@ -193,12 +193,18 @@ considered a Clojure source file by `iclj-load-file'.")
   ;; send ns-vars operation
   (iclj-op-dispatch 'ns-vars "string" nil nil input))
 
+(defun iclj-op-all-ns ()
+  "Pretty print (all-ns)."
+  (interactive)
+  ;; send ns-vars operation
+  (iclj-op-dispatch 'all-ns "string" nil nil ""))
+
 (defun iclj-op-set-ns (input)
   "Invoke Clojure (in-ns INPUT) operation."
   ;; map string function parameter
-  (interactive (iclj-op-minibuffer-read nil "Set Ns"))
+  (interactive (iclj-op-minibuffer-read 'symbol "Set Ns"))
   ;; send set-ns operation
-  (iclj-op-dispatch 'set-ns "string" nil nil input))
+  (iclj-op-dispatch 'set-ns "string" nil t input))
 
 (defun iclj-op-source (input)
   "Invoke Clojure (source INPUT) operation."

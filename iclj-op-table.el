@@ -42,6 +42,14 @@
               (get m :doc))))"
   "Eldoc operation format.")
 
+(defvar iclj-op-all-ns-fmt
+  "(clojure.pprint/pprint
+     (clojure.core/->>
+       (clojure.core/all-ns)
+       (clojure.core/map clojure.core/ns-name)
+       (clojure.core/map name)))"
+  "List all name-spaces available.")
+
 (defvar iclj-op-table
   `((input          . (:fmt "%s"))
     (eval           . (:fmt "%s"))
@@ -59,6 +67,7 @@
     (meta           . (:fmt "(clojure.pprint/pprint (clojure.core/meta #'%s))"))
     (macroexpand    . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand '%s))"))
     (macroexpand-1  . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))"))
+    (all-ns         . (:fmt ,iclj-op-all-ns-fmt))
     (ns-vars        . (:fmt "(clojure.repl/dir %s)"))
     (set-ns         . (:fmt "(clojure.core/in-ns '%s)")))
   "Operation associative list: (OP-KEY . (OP-PLIST))

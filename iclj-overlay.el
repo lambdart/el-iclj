@@ -34,9 +34,8 @@
 ;;
 ;;; Code:
 
-
 (require 'iclj-util)
-(require 'iclj-comint)
+;;(require 'iclj-comint)
 
 (defgroup iclj-overlay nil
   "Iclj overlay features."

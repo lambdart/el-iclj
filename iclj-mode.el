@@ -46,7 +46,7 @@
     (define-key map (kbd "C-c C-e") #'iclj-op-eval-last-sexp)
     (define-key map (kbd "C-x C-e") #'iclj-op-eval-last-sexp)  ; Gnu convention
     (define-key map (kbd "C-c C-r") #'iclj-op-eval-region)
-    (define-key map (kbd "C-c C-b") #'iclj-op-eval-buffer)
+    (define-key map (kbd "C-c C-c") #'iclj-op-eval-buffer)
     (define-key map (kbd "C-c C-d") #'iclj-op-doc)
     (define-key map (kbd "C-c C-f") #'iclj-op-find-doc)
     (define-key map (kbd "C-c C-a") #'iclj-op-apropos)
@@ -92,11 +92,11 @@ If called interactively, toggle \\[iclj-mode].  If the
 prefix argument is positive, enable the mode, and if it is zero
 or negative, disable the mode.
 
-If called from Lisp, toggle the mode if ARG is ‘toggle’.  Enable
-the mode if ARG is nil, omitted, or is a positive number.
-Disable the mode if ARG is a negative number.
+If called from Lisp, toggle the mode. Enable the mode if ARG is nil,
+omitted, or is a positive number. Disable the mode if
+ARG is a negative number.
 
-The mode’s hook is called both when the mode is enabled and when
+The mode's hook is called both when the mode is enabled and when
 it is disabled.
 
 The following commands are available:
@@ -120,6 +120,9 @@ The following commands are available:
     (remove-hook 'eldoc-documentation-functions #'iclj-eldoc-function t)
     ;; remove delete overlay hook
     (remove-hook 'pre-command-hook #'iclj-overlay-delete t))))
+
+;; init iclj-mode after clojure-mode
+;; (add-hook 'clojure-mode-hook 'iclj-mode)
 
 (provide 'iclj-mode)
 
