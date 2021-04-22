@@ -246,6 +246,17 @@ BUFFER-OR-NAME non-nil means, use it as the redirect output buffer (dedicated)."
   (kill-buffer iclj-comint-buffer))
 
 ;;;###autoload
+(defun iclj-comint-remote-run (host port)
+  "Run an inferior instance of Clojure REPL Server (HOST PORT) inside Emacs."
+  (interactive "sHost: \nsPort: ")
+  ;; update host and port, if necessary
+  (let ((port (if (string= port "") "5555" port)))
+    (if (string= host "")
+        (message "[Iclj]: Error, missing host value")
+      ;; run comint with host/port as the program (open-stream)
+      (iclj-comint-run (cons host port)))))
+
+;;;###autoload
 (defun iclj-comint-run (program &optional switches)
   "Run an inferior instance of Clojure REPL PROGRAM inside Emacs.
 If SWITCHES are supplied, they are passed to PROGRAM.  With prefix argument
@@ -306,7 +317,7 @@ The following commands are available:
   (add-hook 'comint-preoutput-filter-functions
             'iclj-comint-preoutput-filter nil t)
   ;; customize redirect verbose
-  (customize-set-variable 'comint-redirect-verbose t)
+  (customize-set-variable 'comint-redirect-verbose nil)
   ;; add dispatch display handler hook
   (add-hook 'comint-redirect-hook
             #'iclj-comint-redirect-dispatch-handler)
