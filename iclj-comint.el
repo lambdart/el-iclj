@@ -35,8 +35,6 @@
 ;;; Code:
 
 (require 'comint)
-
-(require 'iclj-op)
 (require 'iclj-util)
 
 (defgroup iclj-comint nil
@@ -111,11 +109,17 @@
   (let ((proc (get-buffer-process
                (and (buffer-live-p iclj-comint-buffer)
                     iclj-comint-buffer))))
-    ;; if we don't have a live process create it
-    (if (not (process-live-p proc))
-        (get-buffer-process (iclj-comint-run iclj-comint-program))
-      ;; otherwise return it
-      proc)))
+    ;; if we have a live process return it
+    ;; otherwise asks if/and/how should be created
+    (if (process-live-p proc) proc
+      (let* ((create-flag (yes-or-no-p "Create clojure repl comint process?"))
+             (remote-flag (when create-flag
+                            (yes-or-no-p "Remote?"))))
+        (when create-flag
+          (get-buffer-process
+           (if (not remote-flag)
+               (iclj-comint-run iclj-comint-program)
+             (call-interactively 'iclj-comint-remote-run))))))))
 
 (defun iclj-comint-proc-sentinel (process event)
   "Sentinel function to handle (PROCESS EVENT) relation."
@@ -193,7 +197,8 @@ BUFFER-OR-NAME non-nil means, use it as the redirect output buffer (dedicated)."
   (let* ((proc (iclj-comint-proc))
          (proc-buffer (process-buffer proc))
          (output-buffer (iclj-util-get-buffer-create buffer-or-name)))
-    (if (not (buffer-live-p output-buffer))
+    (if (or (not (process-live-p proc))
+            (not (buffer-live-p output-buffer)))
         (message "[ICLJ]: error, no redirect output buffer available")
       ;; erase output redirect buffer
       (iclj-util-erase-buffer output-buffer)
@@ -290,7 +295,7 @@ If SWITCHES are supplied, they are passed to PROGRAM.  With prefix argument
 
 (defvar iclj-comint-mode-map
   (let ((map (copy-keymap comint-mode-map)))
-    (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
+    ;; (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
     (define-key map (kbd "C-c C-q") #'iclj-comint-quit)
     map)
   "Extended Comint Mode Map.")
