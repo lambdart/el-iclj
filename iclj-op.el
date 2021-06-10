@@ -112,7 +112,7 @@ PROMPT, non-nil means minibuffer prompt."
   "Send the previous sexp to the inferior process."
   (interactive)
   ;; send region of the last expression
-  (iclj-op-dispatch 'eval-last-sexp "region" nil nil
+  (iclj-op-dispatch 'eval-last-sexp "region" nil t
                     (save-excursion (backward-sexp) (point)) (point)))
 
 (defun iclj-op-eval-region (beg end)
@@ -175,14 +175,14 @@ considered a Clojure source file by `iclj-load-file'.")
 
 (defun iclj-op-find-doc (input)
   "Find INPUT documentation ."
-  (interactive (iclj-op-minibuffer-read nil "Find-doc"))
+  (interactive (iclj-op-minibuffer-read 'symbol "Find-doc"))
   ;; doc-dwin operation
   (iclj-op-dispatch 'find-doc "string" nil nil input))
 
 (defun iclj-op-apropos (input)
   "Invoke Clojure (apropos INPUT) operation."
   ;; map string function parameter
-  (interactive (iclj-op-minibuffer-read nil "Apropos"))
+  (interactive (iclj-op-minibuffer-read 'symbol "Apropos"))
   ;; send apropos operation
   (iclj-op-dispatch 'apropos "string" nil t input))
 
