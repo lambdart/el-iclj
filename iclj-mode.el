@@ -36,8 +36,10 @@
 
 (require 'iclj-op)
 (require 'iclj-eldoc)
+(require 'iclj-eval)
 (require 'iclj-comint)
 (require 'iclj-overlay)
+(require 'iclj-apropos)
 
 (defvar iclj-mode-map
   (let ((map (make-sparse-keymap)))
@@ -51,7 +53,7 @@
     (define-key map (kbd "C-c C-f") #'iclj-op-find-doc)
     (define-key map (kbd "C-c C-a") #'iclj-op-apropos)
     (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
-    (define-key map (kbd "C-c C-f") #'iclj-op-load-buffer-file-name)
+    (define-key map (kbd "C-c C-b") #'iclj-op-load-buffer-file-name)
     (define-key map (kbd "C-c C-q") #'iclj-comint-quit)
     map)
   "Clojure REPL commands (or operations) keymap.")
