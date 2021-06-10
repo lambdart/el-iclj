@@ -13,7 +13,7 @@
 ;; Copyright (c) 2020 lambdart
 ;;
 ;; Permission is hereby granted, free of charge, to any person obtaining a copy
-;; of this software and associated documentation files (the "Software"), to deal
+ ;; of this software and associated documentation files (the "Software"), to deal
 ;; in the Software without restriction, including without limitation the rights
 ;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 ;; copies of the Software, and to permit persons to whom the Software is
@@ -35,9 +35,9 @@
 ;;; Code:
 
 (require 'iclj-util)
-(require 'iclj-comint)
 (require 'iclj-overlay)
 (require 'iclj-op-table)
+(require 'iclj-comint)
 
 (defgroup iclj-eval nil
   "Iclj overlay features."
@@ -49,6 +49,7 @@
   :group 'iclj-overlay
   :type 'boolean)
 
+;;;###autoload
 (defun iclj-eval-handler (current-buffer)
   "Default CURRENT-BUFFER overlay handler."
   (when iclj-eval-display-overlay-flag
