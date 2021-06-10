@@ -77,6 +77,9 @@ Return the number of nested sexp the point was over or after."
 (defvar iclj-eldoc-callback nil
   "Eldoc cached callback function.")
 
+(defvar iclj-eldoc-doc-string nil
+  "Cache previous doc string.")
+
 (defun iclj-eldoc-clean (output-buffer)
   "Clean internal variables and operation OUTPUT-BUFFER."
   ;; reset callback function
@@ -130,6 +133,12 @@ Meta output documentation field."
                       :face font-lock-function-name-face))))))
     ;; clean variables and kill output buffer
     (iclj-eldoc-clean output-buffer)))
+
+;;;###autoload
+(defun iclj-eldoc-disable ()
+  "Disable eldoc operation."
+  (interactive)
+  (remove-hook 'eldoc-documentation-functions #'iclj-eldoc-function t))
 
 (provide 'iclj-eldoc)
 
