@@ -97,6 +97,12 @@
 (defvar iclj-comint-from-buffer nil
   "Previous current buffer.")
 
+(defvar iclj-comint-host-history '()
+  "Host history list.")
+
+(defvar iclj-comint-default-port "5555"
+  "Port default value.")
+
 (defun iclj-comint-redirect-completed-p ()
   "Return if the PROC/BUFFER redirecting is over."
   ;; comint-redirect-completed is local in relation to the comint-buffer
@@ -250,10 +256,26 @@ BUFFER-OR-NAME non-nil means, use it as the redirect output buffer (dedicated)."
   ;; kill the buffer
   (kill-buffer iclj-comint-buffer))
 
+(defun iclj-comint-read-host-port ()
+  "Read host and port."
+  (let* ((host-history (or (car iclj-comint-host-history) ""))
+         (host-prompt (format
+                       (if (string= host-history "")
+                           "Host: "
+                         "Host[%s]: ")
+                       host-history))
+         (port-prompt (format "Port[%s]: " iclj-comint-default-port)))
+    ;; read the values using the `minibuffer'
+    (list (read-string host-prompt nil host-history iclj-comint-host-history)
+          (read-string port-prompt nil nil iclj-comint-default-port))))
+
 ;;;###autoload
 (defun iclj-comint-remote-run (host port)
   "Run an inferior instance of Clojure REPL Server (HOST PORT) inside Emacs."
-  (interactive "sHost: \nsPort: ")
+  (interactive (iclj-comint-read-host-port))
+  ;; save host history if necessary
+  (unless (member host iclj-comint-host-history)
+    (push host iclj-comint-host-history))
   ;; update host and port, if necessary
   (let ((port (if (string= port "") "5555" port)))
     (if (string= host "")
@@ -268,7 +290,10 @@ If SWITCHES are supplied, they are passed to PROGRAM.  With prefix argument
 \\[universal-argument] prompt for SWITCHES as well as PROGRAM."
   ;; map function arguments
   (interactive
-   (list (read-string "Run program: ")
+   (list (read-string "Run program: "
+                      iclj-comint-program
+                      nil
+                      iclj-comint-program)
          (and (consp current-prefix-arg)
               (split-string-and-unquote (read-string "Switches: ")))))
   ;; make comint process buffer
