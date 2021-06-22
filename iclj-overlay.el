@@ -63,6 +63,16 @@
   "Remove `iclj-overlay' display (if any) prior to new user input."
   (delete-overlay iclj-overlay))
 
+(defun iclj-overlay-enable ()
+  "Enable overlay."
+  (interactive)
+  (add-hook 'pre-command-hook #'iclj-overlay-delete nil t))
+
+(defun iclj-overlay-disable ()
+  "Disable overlay."
+  (interactive)
+  (remove-hook 'pre-command-hook #'iclj-overlay-delete t))
+
 (provide 'iclj-overlay)
 
 ;;; iclj-overlay.el ends here
