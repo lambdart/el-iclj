@@ -119,8 +119,8 @@ The following commands are available:
                        iclj-overlay-enable)))
    (t
     ;; disable
-    (iclj-mode-setup '(iclj-eldoc-enable
-                       iclj-overlay-enable)))))
+    (iclj-mode-setup '(iclj-eldoc-disable
+                       iclj-overlay-disable)))))
 
 ;; init iclj-mode after clojure-mode
 ;; (add-hook 'clojure-mode-hook 'iclj-mode)
