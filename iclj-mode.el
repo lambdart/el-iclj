@@ -86,6 +86,10 @@
   (interactive)
   (message "iclj-mode %s" (if iclj-mode "on" "off")))
 
+(defun iclj-mode-setup (functions)
+  "Call setup FUNCTIONS list (enable or disable functions)."
+  (mapc (lambda (f) (funcall f)) functions))
+
 ;;;###autoload
 (define-minor-mode iclj-mode
   "Minor mode for interacting with the Clojure REPL.
@@ -109,19 +113,14 @@ The following commands are available:
   :keymap iclj-mode-map
   (cond
    (iclj-mode
-    ;; define iclj menu
-    (iclj-define-menu)
-    ;; add autodoc hook
-    (add-hook 'eldoc-documentation-functions #'iclj-eldoc-function nil t)
-    ;; add delete overlay hook
-    (add-hook 'pre-command-hook #'iclj-overlay-delete nil t))
+    ;; enable
+    (iclj-mode-setup '(iclj-define-menu
+                       iclj-eldoc-enable
+                       iclj-overlay-enable)))
    (t
-    ;; ensure overlay was deleted
-    (iclj-overlay-delete)
-    ;; remove autodoc hook
-    (remove-hook 'eldoc-documentation-functions #'iclj-eldoc-function t)
-    ;; remove delete overlay hook
-    (remove-hook 'pre-command-hook #'iclj-overlay-delete t))))
+    ;; disable
+    (iclj-mode-setup '(iclj-eldoc-enable
+                       iclj-overlay-enable)))))
 
 ;; init iclj-mode after clojure-mode
 ;; (add-hook 'clojure-mode-hook 'iclj-mode)
