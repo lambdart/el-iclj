@@ -51,6 +51,7 @@
     (define-key map (kbd "C-c C-c") #'iclj-op-eval-buffer)
     (define-key map (kbd "C-c C-d") #'iclj-op-doc)
     (define-key map (kbd "C-c C-f") #'iclj-op-find-doc)
+    (define-key map (kbd "C-c C-t") #'iclj-op-run-tests)
     (define-key map (kbd "C-c C-a") #'iclj-op-apropos)
     (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
     (define-key map (kbd "C-c C-b") #'iclj-op-load-buffer-file-name)
@@ -121,9 +122,6 @@ The following commands are available:
     ;; disable
     (iclj-mode-setup '(iclj-eldoc-disable
                        iclj-overlay-disable)))))
-
-;; init iclj-mode after clojure-mode
-;; (add-hook 'clojure-mode-hook 'iclj-mode)
 
 (provide 'iclj-mode)
 
