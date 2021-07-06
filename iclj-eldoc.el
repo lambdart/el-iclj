@@ -34,10 +34,12 @@
 ;;
 ;;; Code:
 
+;; builtin
+(require 'subr-x)
+
+;; internal
 (require 'iclj-op)
 (require 'iclj-util)
-(require 'iclj-comint)
-(require 'iclj-op-table)
 
 (defvar iclj-eldoc-thing ""
   "Cache eldoc thing at point.")
@@ -75,41 +77,42 @@ Return the number of nested sexp the point was over or after."
 (defun iclj-eldoc-fnsym ()
   "Return function symbol from current sexp."
   (save-excursion
-    ;; goes to the beginning of the s-expression
-    (iclj-eldoc-beginning-of-sexp)
-    ;; don't do anything if current word is inside a string, vector,
-    ;; hash or set literal
-    (if (member (or (char-after (1- (point))) 0) '(?\" ?\{ ?\[))
-        ""
-      (or (thing-at-point 'symbol) ""))))
+    (save-restriction
+      ;; goes to the beginning of the s-expression
+      (iclj-eldoc-beginning-of-sexp)
+      ;; if current word is inside a string, vector,
+      ;; hash or set literal return an empty string, tries
+      ;; to return the symbol at point otherwise
+      (if (member (or (char-after (1- (point))) 0) '(?\" ?\{ ?\[))
+          "" ;; return empty string
+        (or (thing-at-point 'symbol) "")))))
 
 (defun iclj-eldoc-clean (output-buffer)
   "Clean internal variables and operation OUTPUT-BUFFER."
   ;; reset callback function
-  (setq iclj-eldoc-callback nil)
+  ;; (setq iclj-eldoc-callback nil)
   ;; kill output buffer
   (kill-buffer output-buffer))
 
 (defun iclj-eldoc-parse-docstring (docstring)
   "Parse DOCSTRING output documentation string."
-  (if (not docstring)
-      ""
-    (let ((docstring (replace-regexp-in-string "\n" "" docstring)))
-      (replace-regexp-in-string "  " " " docstring))))
+  (let ((str (replace-regexp-in-string "[\t\n\r]+" "" docstring)))
+    (replace-regexp-in-string "\s+" " " str)))
 
 (defun iclj-eldoc-display-docstring (meta-data callback)
   "Display eldoc documentation string.
 Parse the documentation string and its META-DATA,
 using the CALLBACK function."
   ;; check and invoke callback function
-  (let ((fnsym (car meta-data))
-        (args (cadr meta-data))
-        (docstring (caddr meta-data)))
-    (when (functionp callback)
-      (funcall callback
-               (concat args " " (iclj-eldoc-parse-docstring docstring))
-               :thing fnsym
-               :face font-lock-function-name-face))))
+  (when-let ((fnsym (car meta-data))
+             (args (cadr meta-data))
+             (docstring (caddr meta-data)))
+    (and (functionp callback)
+         (not (string-empty-p docstring))
+         (funcall callback
+                  (concat args " " (iclj-eldoc-parse-docstring docstring))
+                  :thing fnsym
+                  :face font-lock-function-name-face))))
 
 (defun iclj-eldoc-function (callback &rest _ignored)
   "Clojure documentation function.
@@ -120,8 +123,7 @@ about the context around point."
     (unless (string= thing "")
       ;; verify if we have the same thing
       (if (string= thing iclj-eldoc-thing)
-          (iclj-eldoc-display-docstring iclj-eldoc-meta-data
-                                        callback)
+          (iclj-eldoc-display-docstring iclj-eldoc-meta-data callback)
         ;; else: call the eldoc operations
         (when (process-live-p (get-buffer-process iclj-comint-buffer))
           (iclj-op-eldoc thing)
@@ -155,6 +157,7 @@ about the context around point."
 
 (defun iclj-eldoc-enable ()
   "Enable eldoc operation."
+  (interactive)
   (add-hook 'eldoc-documentation-functions #'iclj-eldoc-function nil t))
 
 (defun iclj-eldoc-disable ()
