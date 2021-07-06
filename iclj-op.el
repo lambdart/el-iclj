@@ -70,7 +70,8 @@ INPUT, the string or the region bounds."
                ;; dedicated output buffer
                (or op-buf iclj-op-def-output-buf)
                ;; format string or send region (beg/end)?
-               (if (> (length input) 1) input
+               (if (> (length input) 1)
+                   input
                  (list (format op-fmt (car input)))))))))
 
 (defun iclj-op-thing-at-point (&optional thing)
@@ -166,6 +167,11 @@ considered a Clojure source file by `iclj-load-file'.")
   (let ((filename (buffer-file-name)))
     ;; load file operation
     (iclj-op-load-file filename)))
+
+(defun iclj-op-run-tests ()
+  "Invoke Clojure (run-tests) operation."
+  (interactive)
+  (iclj-op-dispatch 'run-tests "string" nil nil ""))
 
 (defun iclj-op-doc (input)
   "Describe identifier INPUT (string) operation."
