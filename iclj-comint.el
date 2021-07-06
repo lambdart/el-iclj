@@ -200,29 +200,34 @@
 ECHO non-nil means, show output in comint process buffer.
 NO-DISPLAY non-nil means, don't display the default output buffer.
 BUFFER-OR-NAME non-nil means, use it as the redirect output buffer (dedicated)."
-  (let* ((proc (iclj-comint-proc))
-         (proc-buffer (process-buffer proc))
-         (output-buffer (iclj-util-get-buffer-create buffer-or-name)))
-    (if (or (not (process-live-p proc))
-            (not (buffer-live-p output-buffer)))
-        (message "[ICLJ]: error, no redirect output buffer available")
-      ;; erase output redirect buffer
-      (iclj-util-erase-buffer output-buffer)
-      ;; change to the process buffer
-      (with-current-buffer proc-buffer
-        ;; set up for redirection
-        (comint-redirect-setup output-buffer
-                               iclj-comint-buffer        ; comint buffer
-                               iclj-comint-prompt-regexp ; finished regexp
-                               echo)                        ; echo input
-        ;; set the filter
-        (add-function :around (process-filter proc) #'comint-redirect-filter)
-        ;; apply the right process send function
-        (with-current-buffer from-buffer (apply send-func proc input))
-        ;; always send new line <return>
-        (process-send-string proc "\n")
-        ;; show the output
-        (or no-display (display-buffer (get-buffer-create output-buffer)))))))
+  (let ((proc (iclj-comint-proc)))
+    (if (not (process-live-p proc))
+        ;; clean message and leave
+        (message nil)
+      ;; else:
+      (let ((proc-buffer (process-buffer proc))
+            (output-buffer (iclj-util-get-buffer-create buffer-or-name)))
+        (if (not (buffer-live-p output-buffer))
+            (message "[ICLJ]: error, no redirect output buffer available")
+          ;; erase output redirect buffer
+          (iclj-util-erase-buffer output-buffer)
+          ;; change to the process buffer
+          (with-current-buffer proc-buffer
+            ;; set up for redirection
+            (comint-redirect-setup output-buffer
+                                   iclj-comint-buffer        ; comint buffer
+                                   iclj-comint-prompt-regexp ; finished regexp
+                                   echo)                        ; echo input
+            ;; set the filter
+            (add-function :around (process-filter proc) #'comint-redirect-filter)
+            ;; apply the right process send function
+            (with-current-buffer from-buffer (apply send-func proc input))
+            ;; always send new line <return>
+            (process-send-string proc "\n")
+            ;; show the output
+            (or no-display
+                (display-buffer
+                 (get-buffer-create output-buffer)))))))))
 
 (defun iclj-comint-input-sender (_ string)
   "Comint input sender STRING function."
