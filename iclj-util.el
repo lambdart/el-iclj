@@ -59,7 +59,7 @@ thing means."
       (buffer-substring-no-properties (car bounds)
                                       (cdr bounds)))))
 
-(defun iclj-util--buffer-last-line (buffer regexp)
+(defun iclj-util--last-line (buffer regexp)
   "Return the BUFFER last line determined by REGEXP pattern."
   (with-current-buffer buffer
     (save-excursion
@@ -70,8 +70,10 @@ thing means."
       (forward-line -1)
       ;; while last line not found, keep going backwards
       (while (and (> (point) (point-min))
-                  (looking-at-p regexp))
+                  (not (looking-at-p regexp)))
         (forward-line -1))
+      ;; last line
+      (forward-line -1)
       ;; return the string that represents the last line
       (buffer-substring-no-properties (point)
                                       (progn
@@ -81,8 +83,27 @@ thing means."
   "Return the BUFFER last line determined by REGEXP pattern.
 DEFAULT, value to be returned if the last-line isn't found."
   (if (buffer-live-p buffer)
-      (iclj-util--buffer-last-line buffer regexp)
+      (iclj-util--last-line buffer regexp)
     (or default "nil")))
+
+(defun iclj-util-buffer-content (buffer &optional regexp)
+  "Return BUFFER content.
+If REGEXP is non-nil remove/filter it from the content."
+  (save-excursion
+    (when (buffer-live-p buffer)
+      (with-current-buffer buffer
+        (widen)
+        ;; go to the end of the buffer
+        (goto-char (point-max))
+        ;; remove end of command if necessary
+        (if regexp
+            (if (search-backward-regexp regexp nil t)
+                (buffer-substring-no-properties (point-min)
+                                                (point))
+              "")
+          ;; else return everything
+          (buffer-substring-no-properties (point-min)
+                                          (point-max)))))))
 
 (defun iclj-util-get-buffer-create (buffer-or-name)
   "Get or create redirect buffer using the specify BUFFER-OR-NAME."
@@ -90,11 +111,12 @@ DEFAULT, value to be returned if the last-line isn't found."
     (if (buffer-live-p buffer) buffer
       (let ((buffer (get-buffer-create buffer-or-name)))
         (with-current-buffer buffer
-          (setq buffer-read-only t)
+          ;; make the buffer read only
+          (setq-local buffer-read-only t)
           ;; enable clojure-mode if available
           (and (require 'clojure-mode nil t)
-               (fboundp 'clojure-mode)
-               (clojure-mode)))
+               (fboundp 'clojure-font-lock-setup)
+               (clojure-font-lock-setup)))
         ;; return the buffer
         buffer))))
 
@@ -110,6 +132,18 @@ DEFAULT, value to be returned if the last-line isn't found."
     (setq buffer-read-only nil)
     ;; clean buffer
     (erase-buffer)))
+
+(defun iclj-util-save-buffer (filename)
+  "Check whether to save buffer visiting file FILENAME.
+Prior to loading or compiling, this function can be called on the filename.
+If the file is loaded into a buffer, and the buffer is modified, the user
+is queried to see if he wants to save the buffer before proceeding with
+the load or compile."
+  (let ((buffer (get-file-buffer filename)))
+    (when (and buffer
+               (buffer-modified-p buffer)
+               (y-or-n-p (format "Save buffer %s first? " (buffer-name buffer))))
+      (with-current-buffer buffer (save-buffer)))))
 
 (provide 'iclj-util)
 
