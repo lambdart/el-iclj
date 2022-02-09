@@ -13,7 +13,7 @@
 ;; Copyright (c) 2020 lambdart
 ;;
 ;; Permission is hereby granted, free of charge, to any person obtaining a copy
- ;; of this software and associated documentation files (the "Software"), to deal
+;; of this software and associated documentation files (the "Software"), to deal
 ;; in the Software without restriction, including without limitation the rights
 ;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 ;; copies of the Software, and to permit persons to whom the Software is
@@ -50,14 +50,17 @@
   :type 'boolean)
 
 ;;;###autoload
-(defun iclj-eval-handler (current-buffer)
-  "Default CURRENT-BUFFER overlay handler."
+(defun iclj-eval-handler (output-buffer source-buffer)
+  "Get last line from OUTPUT-BUFFER and display it in the SOURCE-BUFFER.
+Overlay is the front end of choice."
   (when iclj-eval-display-overlay-flag
-    (let* ((output-buffer (iclj-op-table-get-property 'eval-last-sexp :buf))
-           (last-line (iclj-util-last-line
-                       (iclj-util-get-buffer-create output-buffer) "nil")))
+    (unless iclj-overlay-enabled
+      (funcall 'iclj-overlay-enable))
+    (let ((last-line (iclj-util-last-line output-buffer
+                                          iclj-op-table-eoc
+                                          "nil")))
       ;; display overlay with last-line in current buffer
-      (iclj-overlay-display current-buffer
+      (iclj-overlay-display source-buffer
                             (concat " => " last-line)))))
 
 (provide 'iclj-eval)
