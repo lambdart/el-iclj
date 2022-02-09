@@ -35,15 +35,15 @@
 ;;; Code:
 
 (require 'iclj-op)
-(require 'iclj-eldoc)
 (require 'iclj-eval)
-(require 'iclj-comint)
+(require 'iclj-eldoc)
 (require 'iclj-overlay)
-(require 'iclj-apropos)
+(require 'iclj-completion)
+(require 'clojure-mode nil t)
 
 (defvar iclj-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "<tab>")   #'iclj-op-completion-at-point)
+    (define-key map (kbd "<tab>")   #'iclj-completion-at-point)
     (define-key map (kbd "C-M-x")   #'iclj-op-eval-defn) ; Gnu convention
     (define-key map (kbd "C-c C-e") #'iclj-op-eval-last-sexp)
     (define-key map (kbd "C-x C-e") #'iclj-op-eval-last-sexp)  ; Gnu convention
@@ -55,7 +55,10 @@
     (define-key map (kbd "C-c C-a") #'iclj-op-apropos)
     (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
     (define-key map (kbd "C-c C-b") #'iclj-op-load-buffer-file-name)
+    (define-key map (kbd "C-c C-p") #'iclj-comint-remote-run)
     (define-key map (kbd "C-c C-q") #'iclj-comint-quit)
+    ;; set parent keymap
+    (set-keymap-parent map clojure-mode-map)
     map)
   "Clojure REPL commands (or operations) keymap.")
 
@@ -79,7 +82,8 @@
       "--"
       ["Quit REPL" iclj-comint-quit])))
 
-(defvar iclj-mode nil)
+(defvar iclj-mode nil
+  "Non-nil means the minor mode is on, off otherwise.")
 
 ;;;###autoload
 (defun iclj-mode-state ()
@@ -112,16 +116,10 @@ The following commands are available:
 
   :lighter ""
   :keymap iclj-mode-map
-  (cond
-   (iclj-mode
-    ;; enable
-    (iclj-mode-setup '(iclj-define-menu
-                       iclj-eldoc-enable
-                       iclj-overlay-enable)))
-   (t
-    ;; disable
-    (iclj-mode-setup '(iclj-eldoc-disable
-                       iclj-overlay-disable)))))
+  (iclj-mode-setup
+   (if iclj-mode
+       '(iclj-define-menu iclj-eldoc-enable)
+     '(iclj-eldoc-disable))))
 
 (provide 'iclj-mode)
 
