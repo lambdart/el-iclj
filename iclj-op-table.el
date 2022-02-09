@@ -42,34 +42,49 @@
               (get m :doc))))"
   "Eldoc operation format.")
 
+(defvar iclj-ns-list-fmt
+  "(clojure.core/->>
+     (clojure.core/all-ns)
+     (clojure.core/map clojure.core/ns-name)
+     (clojure.core/map name))"
+  "Return list all of available namespaces.")
+
 (defvar iclj-op-all-ns-fmt
   "(clojure.pprint/pprint
      (clojure.core/->>
        (clojure.core/all-ns)
        (clojure.core/map clojure.core/ns-name)
        (clojure.core/map name)))"
-  "List all name-spaces available.")
+  "List all available namespaces.")
+
+(defvar iclj-op-table-eoc "\n--ICLJ-EOC-INDICATOR--\n"
+  "Default end of command indicator.")
+
+(defun iclj-op-with-eoc (op)
+  "Return OP with end of command indicator."
+  (format "%s (print %S)"
+          op
+          iclj-op-table-eoc))
 
 (defvar iclj-op-table
   `((input          . (:fmt "%s"))
     (eval           . (:fmt "%s"))
-    (eval-last-sexp . (:fun iclj-eval-handler :fmt "%s" :buf "*iclj-eval*"))
-    (load-file      . (:fmt "(clojure.core/load-file %S)"))
+    (eval-last-sexp . (:fun iclj-eval-handler :fmt "%s" :waitp t))
     (doc            . (:fmt "(clojure.repl/doc %s)"))
     (find-doc       . (:fmt "(clojure.repl/find-doc %S)"))
     (run-tests      . (:fmt "(clojure.test/run-tests)"))
-    (eldoc          . (:fun iclj-eldoc-handler :fmt ,iclj-op-eldoc-fmt
-                            :buf "*iclj-eldoc*"))
-    (apropos        . (:fun iclj-apropos-handler :fmt "(sort (clojure.repl/apropos %S))"
-                            :buf "*iclj-apropos*"))
+    (eldoc          . (:fun iclj-eldoc-handler :fmt ,iclj-op-eldoc-fmt :waitp t))
+    (apropos        . (:fun iclj-apropos-handler
+                       :fmt "(sort (clojure.repl/apropos %S))"
+                       :waitp t))
     (source         . (:fmt "(clojure.repl/source %s)"))
-    (completion     . (:fun iclj-completion-handler :fmt "(clojure.repl/apropos %S)"
-                            :buf "*iclj-completion*"))
+
     (meta           . (:fmt "(clojure.pprint/pprint (clojure.core/meta #'%s))"))
     (macroexpand    . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand '%s))"))
     (macroexpand-1  . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))"))
     (all-ns         . (:fmt ,iclj-op-all-ns-fmt))
     (ns-vars        . (:fmt "(clojure.repl/dir %s)"))
+    (ns-list        . (:fmt ,iclj-ns-list-fmt :fun iclj-ns-list-handler :waitp t))
     (set-ns         . (:fmt "(clojure.core/in-ns '%s)")))
   "Operation associative list: (OP-KEY . (OP-PLIST))
 OP-KEY, the operation key selector.
