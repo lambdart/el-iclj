@@ -35,14 +35,21 @@
 ;;; Code:
 
 (require 'button)
-(require 'iclj-op)
+
+(require 'iclj-util)
 (require 'iclj-op-table)
 
-(defvar iclj-apropos-buffer-name "clojure-apropos"
+(defvar iclj-apropos-buffer-name "*iclj-clojure-apropos*"
   "Apropos buffer name.")
 
 (defvar iclj-apropos-buffer nil
   "Apropos temporary buffer.")
+
+(defvar iclj-apropos-collection '()
+  "Apropos cached collection.")
+
+(defvar iclj-apropos-cache-flag nil
+  "Non-nil means cache collection flag.")
 
 (define-button-type 'iclj-apropos-button
   'face
@@ -50,7 +57,8 @@
   'help-echo "mouse-2, RET: Display documentation"
   'follow-link t
   'action (lambda (button)
-            (iclj-op-doc (button-get button 'symbol))))
+            (and (fboundp 'iclj-op-doc)
+                 (funcall 'iclj-op-doc (button-get button 'symbol)))))
 
 (defun iclj-apropos-buffer ()
   "Return apropos buffer."
@@ -65,30 +73,46 @@
   (insert-button symbol 'symbol symbol :type 'iclj-apropos-button)
   (insert "\n"))
 
-(defun iclj-apropos-collection (output)
-  "Parse OUTPUT to a collection of string elements."
-  (split-string (substring-no-properties output 1 -2) " "))
+(defun iclj-apropos-append-collection (collection)
+  "Clean name space from the COLLECTION and append it."
+  (append
+   (mapcar (lambda (x)
+             (replace-regexp-in-string "^.+/" "" x))
+           collection)
+   collection))
 
-(defun iclj-apropos-handler (_)
-  "Apropos operation handler."
-  (iclj-comint-with-redirect-output
-   ;; get apropos operation (comint redirect) output buffer
-   (iclj-op-table-get-property 'apropos :buf)
-   ;; parse collection and insert into apropos-buffer
-   (let ((collection (iclj-apropos-collection output))
-         (buffer (iclj-apropos-buffer)))
-     (with-current-buffer buffer
-       (let ((inhibit-read-only t))
-         ;; clean buffer
-         (erase-buffer)
-         ;; insert each button
-         (mapc (lambda (x)
-                 (iclj-apropos-insert-button x))
-               collection))
-       ;; go back to the start
-       (goto-char (point-min)))
-     ;; display apropos buffer
-     (display-buffer buffer))))
+(defun iclj-apropos-collection (output &optional cache-flag)
+  "Parse OUTPUT to a collection of string elements.
+If CACHE-FLAG is true save the collection after removing name spaces and append
+it to the original collection (this should be used in the completions
+setup phase)."
+  (let ((collection (split-string (substring-no-properties output 1 -2) " ")))
+    (if (not cache-flag)
+        ;; just return the collection
+        collection
+      ;; otherwise cache it
+      (setq iclj-apropos-collection
+            (iclj-apropos-append-collection collection)))))
+
+(defun iclj-apropos-handler (output-buffer _source-buffer)
+  "Apropos OUTPUT-BUFFER operation handler."
+  (let ((content (iclj-util-buffer-content output-buffer iclj-op-table-eoc)))
+    (unless (string-empty-p content)
+      (save-excursion
+        (display-buffer
+         (let ((buffer (iclj-apropos-buffer))
+               (collection (iclj-apropos-collection content))
+               (inhibit-read-only t))
+           (with-current-buffer buffer
+             ;; clean buffer (just in case)
+             (erase-buffer)
+             ;; insert buttons
+             (dolist (symbol collection)
+               (iclj-apropos-insert-button symbol))
+             ;; go to beginning of the buffer
+             (goto-char (point-min))
+             ;; return the buffer
+             (current-buffer))))))))
 
 (provide 'iclj-apropos)
 
