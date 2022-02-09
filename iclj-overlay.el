@@ -42,6 +42,9 @@
   :prefix "iclj-overlay-"
   :group 'iclj-overlay)
 
+(defvar-local iclj-overlay-enabled nil
+  "Indicates with overlay is already present in the current buffer.")
+
 (defvar-local iclj-overlay (make-overlay (point-min) (point-min) nil t t)
   "Overlay used to display the process output text.")
 
@@ -66,11 +69,17 @@
 (defun iclj-overlay-enable ()
   "Enable overlay."
   (interactive)
+  ;; enabled indicator
+  (setq iclj-overlay-enabled t)
+  ;; add local hook to clean the overlay
   (add-hook 'pre-command-hook #'iclj-overlay-delete nil t))
 
 (defun iclj-overlay-disable ()
   "Disable overlay."
   (interactive)
+  ;; disabled indicator
+  (setq iclj-overlay-enabled nil)
+  ;; remove local hook
   (remove-hook 'pre-command-hook #'iclj-overlay-delete t))
 
 (provide 'iclj-overlay)
