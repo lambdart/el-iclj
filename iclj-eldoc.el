@@ -39,6 +39,7 @@
 
 ;; internal
 (require 'iclj-op)
+(require 'iclj-tq)
 (require 'iclj-util)
 
 (defvar iclj-eldoc-thing ""
@@ -125,35 +126,30 @@ about the context around point."
       (if (string= thing iclj-eldoc-thing)
           (iclj-eldoc-display-docstring iclj-eldoc-meta-data callback)
         ;; else: call the eldoc operations
-        (when (process-live-p (get-buffer-process iclj-comint-buffer))
-          (iclj-op-eldoc thing)
-          ;; cache eldoc callback
-          (setq iclj-eldoc-callback callback)
-          ;; cache thing
-          (setq iclj-eldoc-thing thing)
-          ;; - If the computation of said doc string (or the decision whether
-          ;; there is one at all) is expensive or can't be performed
-          ;; directly, the hook function should return a non-nil, non-string
-          ;; value and arrange for CALLBACK to be called at a later time,
-          ;; using asynchronous processes or other asynchronous mechanisms.
-          0)))))
+        (iclj-op-eldoc thing)
+        ;; cache eldoc callback
+        (setq iclj-eldoc-callback callback)
+        ;; cache thing
+        (setq iclj-eldoc-thing thing)
+        ;; - If the computation of said doc string (or the decision whether
+        ;; there is one at all) is expensive or can't be performed
+        ;; directly, the hook function should return a non-nil, non-string
+        ;; value and arrange for CALLBACK to be called at a later time,
+        ;; using asynchronous processes or other asynchronous mechanisms.
+        0))))
 
-(defun iclj-eldoc-handler (_)
-  "Eldoc function handler."
-  (let ((output-buffer (iclj-op-table-get-property 'eldoc :buf)))
-    (iclj-comint-with-redirect-output
-     ;; get eldoc operation output buffer
-     output-buffer
-     ;; parse output and display into echo area
-     (let ((meta-data (read output)))
-       (when (listp meta-data )
-         ;; cache eldoc meta-data information
-         (setq iclj-eldoc-meta-data meta-data)
-         ;; display eldoc docstring
-         (iclj-eldoc-display-docstring iclj-eldoc-meta-data
-                                       iclj-eldoc-callback))))
-    ;; clean variables and kill output buffer
-    (iclj-eldoc-clean output-buffer)))
+(defun iclj-eldoc-handler (output-buffer _)
+  "Handler Eldoc OUTPUT-BUFFER to print/display the documentation."
+  (let ((content (iclj-util-buffer-content output-buffer iclj-op-table-eoc)))
+    (unless (string-empty-p content)
+      ;; parse output and display into echo area
+      (let ((meta-data (read content)))
+        (when (listp meta-data)
+          ;; cache eldoc meta-data information
+          (setq iclj-eldoc-meta-data meta-data)
+          ;; display eldoc docstring
+          (iclj-eldoc-display-docstring iclj-eldoc-meta-data
+                                        iclj-eldoc-callback))))))
 
 (defun iclj-eldoc-enable ()
   "Enable eldoc operation."
