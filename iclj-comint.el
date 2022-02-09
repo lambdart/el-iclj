@@ -117,7 +117,8 @@
                     iclj-comint-buffer))))
     ;; if we have a live process return it
     ;; otherwise asks if/and/how should be created
-    (if (process-live-p proc) proc
+    (if (process-live-p proc)
+        proc
       (let* ((create-flag (yes-or-no-p "Create clojure repl comint process?"))
              (remote-flag (when create-flag
                             (yes-or-no-p "Remote?"))))
@@ -173,7 +174,7 @@
   "Return the output STRING."
   ;; cache comint response
   (push string iclj-comint-output-cache)
-  ;; verify filter in progress control variable
+  ;; verify if filter is in progress
   (when (string-match-p iclj-comint-prompt-regexp string)
     (setq iclj-comint-proc-in-progress nil))
   ;; return the string to the comint buffer (implicit)
@@ -219,7 +220,7 @@ BUFFER-OR-NAME non-nil means, use it as the redirect output buffer (dedicated)."
                                    iclj-comint-prompt-regexp ; finished regexp
                                    echo)                        ; echo input
             ;; set the filter
-            (add-function :around (process-filter proc) #'comint-redirect-filter)
+             (add-function :around (process-filter proc) #'comint-redirect-filter)
             ;; apply the right process send function
             (with-current-buffer from-buffer (apply send-func proc input))
             ;; always send new line <return>
@@ -254,12 +255,12 @@ BUFFER-OR-NAME non-nil means, use it as the redirect output buffer (dedicated)."
 (defun iclj-comint-quit ()
   "Quit Clojure comint, i.e, quit subjob and kill the buffer."
   (interactive)
-  ;; quit the subjob, if necessary
-  (and iclj-comint-buffer
-       (with-current-buffer iclj-comint-buffer
-         (comint-quit-subjob)))
-  ;; kill the buffer
-  (kill-buffer iclj-comint-buffer))
+  ;; quit process first
+  (let ((proc (get-buffer-process iclj-comint-buffer)))
+    (and proc (interrupt-process proc)))
+  ;; kill buffer if necessary
+  (when (bufferp iclj-comint-buffer)
+    (kill-buffer iclj-comint-buffer)))
 
 (defun iclj-comint-read-host-port ()
   "Read host and port."
@@ -325,7 +326,6 @@ If SWITCHES are supplied, they are passed to PROGRAM.  With prefix argument
 
 (defvar iclj-comint-mode-map
   (let ((map (copy-keymap comint-mode-map)))
-    ;; (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
     (define-key map (kbd "C-c C-q") #'iclj-comint-quit)
     map)
   "Extended Comint Mode Map.")
