@@ -239,6 +239,10 @@ This produces more reliable results with some processes."
     (when sendp
       (iclj-tq-proc-send-input tq))))
 
+(defun iclj-tq-proc-live-p (tq)
+  "Return non-nil if process in the TQ is alive."
+  (process-live-p (iclj-tq-proc tq)))
+
 (defun iclj-tq-proc-delete (tq)
   "Shut down transaction queue TQ terminating the process.
 This function always returns nil."
