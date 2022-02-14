@@ -272,33 +272,6 @@ by the caller."
     ;; return transaction queue instance
     tq))
 
-(defun iclj-tq-send (tq input waitp handler &optional orig-buffer)
-  "This sends the INPUT string to the process of TQ instance.
-
-If WAITP is non-nil we call the HANDLER function ASAP, otherwise we
-wait for the response end of command indicator.
-
-The HANDLER is called passing two arguments: the response and
-the ORIG-BUFFER."
-  ;; and enqueue the operation
-  (iclj-tq-enqueue
-   ;; instance of the transmission queue
-   tq
-   ;; input data that will be send to the REPL network stream
-   input
-   ;; indicates if we should wait for the end of command
-   ;; indicator: if non-nil call the handler after the EOC
-   ;; insertion, otherwise call handler ASAP
-   waitp
-   ;; handler: function that will handler the operation
-   handler
-   ;; origin buffer (optional), this information can be use to the function
-   ;; handler, the eval function handler for example uses it to display
-   ;; the response overlay
-   orig-buffer
-   ;; delay send
-   t))
-
 (provide 'iclj-tq)
 
 ;;; iclj-tq.el ends here
