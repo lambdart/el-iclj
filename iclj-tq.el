@@ -178,9 +178,7 @@ to the TQ head."
           ;; delete process structure
           (delete-process process)
           ;; display log message
-          (iclj-util-log "error: connection isn't live" t)
-          ;; clean transmission queue
-          (setf tq nil))
+          (iclj-util-log "error: connection isn't live" t))
       ;; reset end of command state variable
       (setq iclj-tq-proc-eoc-found nil)
       ;; send region or string to the process
