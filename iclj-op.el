@@ -107,6 +107,12 @@ WAITP, when non-nil wait the end of command indicator before call the proper
 handler.
 
 INPUT, the string or the region bounds."
+  ;; first verify if the process is alive
+  ;; clean transmission queue if necessary
+  (setq iclj-op-tq (if (and iclj-op-tq
+                            (not (process-live-p (iclj-tq-proc iclj-op-tq))))
+                       nil
+                     iclj-op-tq))
   ;; insure transmission queue connection
   (or iclj-op-tq (call-interactively 'iclj-op-connect))
   ;; parse and send the operation if operation queue was proper initialized
@@ -170,8 +176,9 @@ PROMPT, non-nil means minibuffer prompt."
   ;; send region of the last expression
   (iclj-op-tq-send 'eval-last-sexp
                    nil
-                   (save-excursion (backward-sexp)
-                                   (point))
+                   (save-excursion
+                     (backward-sexp)
+                     (point))
                    (point)))
 
 (defun iclj-op-eval-region (beg end)
@@ -277,14 +284,8 @@ considered a Clojure source file by `iclj-load-file'.")
   (interactive)
   ;; first get namespaces list
   (iclj-op-tq-send 'ns-list t "")
-  ;; update input
-  (let ((namespace (completing-read "Namespace: "
-                                    iclj-ns-cache-list
-                                    nil
-                                    t
-                                    nil)))
-    ;; send ns-vars operation
-    (iclj-op-tq-send 'ns-vars nil namespace)))
+  ;; send ns-vars operation
+  (iclj-op-tq-send 'ns-vars nil (iclj-ns-read-namespace)))
 
 (defun iclj-op-set-ns ()
   "Invoke Clojure (in-ns INPUT) operation."
@@ -292,14 +293,8 @@ considered a Clojure source file by `iclj-load-file'.")
   (interactive)
   ;; first get namespaces list
   (iclj-op-tq-send 'ns-list t "")
-  ;; update input
-  (let ((namespace (completing-read "Namespace: "
-                                    iclj-ns-cache-list
-                                    nil
-                                    t
-                                    nil)))
-    ;; send set-ns operation
-    (iclj-op-tq-send 'set-ns t namespace)))
+  ;; send set-ns operation
+  (iclj-op-tq-send 'set-ns t (iclj-ns-read-namespace)))
 
 (defun iclj-op-source (input)
   "Invoke Clojure (source INPUT) operation."
