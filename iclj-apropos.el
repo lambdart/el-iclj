@@ -35,9 +35,7 @@
 ;;; Code:
 
 (require 'button)
-
 (require 'iclj-util)
-(require 'iclj-op-table)
 
 (defvar iclj-apropos-buffer-name "*iclj-clojure-apropos*"
   "Apropos buffer name.")
@@ -62,8 +60,9 @@
 
 (defun iclj-apropos-buffer ()
   "Return apropos buffer."
-  (if (buffer-live-p iclj-apropos-buffer) iclj-apropos-buffer
-    (let ((buffer (get-buffer-create iclj-apropos-buffer-name)))
+  (if (buffer-live-p iclj-apropos-buffer)
+      iclj-apropos-buffer
+    (let ((buffer (iclj-util-get-buffer-create iclj-apropos-buffer-name)))
       (with-current-buffer buffer
         (setq buffer-read-only t))
       (setq iclj-apropos-buffer buffer))))
@@ -96,7 +95,7 @@ setup phase)."
 
 (defun iclj-apropos-handler (output-buffer _source-buffer)
   "Apropos OUTPUT-BUFFER operation handler."
-  (let ((content (iclj-util-buffer-content output-buffer iclj-op-table-eoc)))
+  (let ((content (iclj-util-buffer-content output-buffer iclj-util-eoc)))
     (unless (string-empty-p content)
       (save-excursion
         (display-buffer
