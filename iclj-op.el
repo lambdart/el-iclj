@@ -129,11 +129,12 @@ INPUT, the string or the region bounds."
                (op-input (iclj-op-with-eoc
                           (iclj-op-parse-input input op-format))))
           ;; transmission queue send
-          (iclj-tq-send iclj-op-tq
-                        op-input
-                        op-waitp
-                        op-handler
-                        (current-buffer)))))))
+          (iclj-tq-enqueue iclj-op-tq
+                           op-input
+                           op-waitp
+                           op-handler
+                           (current-buffer)
+                           t))))))
 
 (defun iclj-op-thing-at-point (&optional thing)
   "Return THING at point.
