@@ -35,14 +35,13 @@
 ;;; Code:
 
 (require 'iclj-util)
-(require 'iclj-op-table)
 
 (defvar iclj-ns-cache-list '()
   "Namespaces cached list.")
 
 (defun iclj-ns-list-handler (output-buffer _)
   "Handler NS-LIST OUTPUT-BUFFER."
-  (let ((content (iclj-util-buffer-content output-buffer iclj-op-table-eoc)))
+  (let ((content (iclj-util-buffer-content output-buffer iclj-util-eoc)))
     (unless (string-empty-p content)
       ;; parse output and display into echo area
       (setq iclj-ns-cache-list (read content)))
