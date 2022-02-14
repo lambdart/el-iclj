@@ -57,15 +57,6 @@
        (clojure.core/map name)))"
   "List all available namespaces.")
 
-(defvar iclj-op-table-eoc "\n--ICLJ-EOC-INDICATOR--\n"
-  "Default end of command indicator.")
-
-(defun iclj-op-with-eoc (op)
-  "Return OP with end of command indicator."
-  (format "%s (print %S)"
-          op
-          iclj-op-table-eoc))
-
 (defvar iclj-op-table
   `((input          . (:fmt "%s"))
     (eval           . (:fmt "%s"))
@@ -83,7 +74,8 @@
     (macroexpand    . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand '%s))"))
     (macroexpand-1  . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))"))
     (all-ns         . (:fmt ,iclj-op-all-ns-fmt))
-    (ns-vars        . (:fmt "(clojure.repl/dir %s)"))
+    (ns-vars        . (:fmt "(clojure.repl/dir %s)"
+                       :waitp t))
     (ns-list        . (:fmt ,iclj-ns-list-fmt :fun iclj-ns-list-handler :waitp t))
     (set-ns         . (:fmt "(clojure.core/in-ns '%s)")))
   "Operation associative list: (OP-KEY . (OP-PLIST))
