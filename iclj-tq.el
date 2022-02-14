@@ -34,19 +34,7 @@
 ;;
 ;;; Code:
 
-(require 'iclj-util nil t)
-
-(defvar iclj-tq-subprompt-regexp " *#_=> *"
-  "Regexp to recognize subprompts in the Inferior Clojure mode.")
-
-(defvar iclj-tq-prompt-regexp "\\( *#_\\|[^=> \n]+\\)=> *"
-  "Regexp to recognize both main prompt and subprompt for comint.")
-
-(defvar iclj-tq nil
-  "Default tq head cache.")
-
-(defvar iclj-tq-eoc "\n--ICLJ-EOC-INDICATOR--\n"
-  "Default end of command indicator.")
+(require 'iclj-util)
 
 (defvar iclj-tq-stream-name
   " *iclj-repl-server-stream*"
@@ -63,7 +51,11 @@ Looks like (queue proc . eoc)."
 
 (defun iclj-tq-proc-eoc (tq)
   "Fetch TQ process end of command indicator."
-  (cddr tq))
+  (caddr tq))
+
+(defun iclj-tq-prompt-regexp (tq)
+  "Fetch TQ prompt regexp."
+  (cadddr tq))
 
 (defun iclj-tq-queue-head-input (tq)
   "Fetch TQ question.
@@ -94,17 +86,16 @@ Buffer: process output buffer."
   "Return non-nil if queue (TQ) is empty."
   (not (iclj-tq-queue tq)))
 
-;;; Core functionality
-
-(defun iclj-tq-filter-chunk (string)
-  "Return filtered STRING, i.e, prompt is removed."
-  (format "%s"
-          (if (and string (stringp string))
-              ;; remove prompt
-              (replace-regexp-in-string iclj-tq-prompt-regexp
-                                        ""
-                                        string)
-            "")))
+(defun iclj-tq-filter-chunk (tq string)
+  "Return output STRING after TQ prompt-regexp removal."
+  (let ((prompt-regexp (iclj-tq-prompt-regexp tq)))
+    (format "%s"
+            (if (and string (stringp string))
+                ;; remove prompt
+                (if prompt-regexp
+                    (replace-regexp-in-string prompt-regexp "" string)
+                  string
+                  "")))))
 
 (defun iclj-tq-call-handler (tq)
   "Call TQ function handler."
@@ -114,23 +105,29 @@ Buffer: process output buffer."
              (iclj-tq-queue-head-temp-buffer tq)
              (iclj-tq-queue-head-orig-buffer tq))))
 
-(defun iclj-tq-filter (tq string)
+(defvar iclj-tq-proc-eoc-found nil)
+
+(defun iclj-tq-proc-filter (tq string)
   "Cache TQ output STRING."
   ;; analyse if output has the end of request indicator (prompt regexp)
-  (let ((chunk (iclj-tq-filter-chunk string)))
+  (let ((chunk (iclj-tq-filter-chunk tq string)))
     ;; skip if chunk is empty
     (unless (string-empty-p chunk)
       (let ((buffer (iclj-tq-queue-head-temp-buffer tq))
             (inhibit-read-only t))
         (when (buffer-live-p buffer)
           (with-current-buffer buffer
-            ;; go to point max before insertion
-            (goto-char (point-max))
-            ;; insert the output chunk the temporary output buffer
-            (insert chunk))))
+            (save-excursion
+              ;; go to point max before insertion
+              (goto-char (point-max))
+              ;; insert the output chunk the temporary output buffer
+              (insert chunk)))))
       ;; logs if EOC was found (debugging)
-      (when (string-match-p (car (iclj-tq-proc-eoc tq)) chunk)
-        (iclj-tq-log "process: end of command!")
+      (when (string-match-p (iclj-tq-proc-eoc tq) chunk)
+        ;; change state of control variable
+        (setq iclj-tq-proc-eoc-found t)
+        ;; log the message
+        (iclj-util-log "process: end of command!")
         ;; call the handler if it's waiting
         (when (iclj-tq-queue-head-waitp tq)
           (iclj-tq-call-handler tq))
@@ -138,16 +135,19 @@ Buffer: process output buffer."
         (iclj-tq-queue-pop tq)))))
 
 ;;;###autoload
-(defun iclj-tq--make (process eoc)
+(defun iclj-tq--make (process process-eoc &optional prompt-regexp)
   "Make and return a transaction queue that communicates with PROCESS.
 PROCESS should be a sub process capable of sending and receiving
 streams of bytes.  It may be a local process, or it may be connected
-to a tcp server on another machine. EOC (end of command) is used to indicate the
-end of command."
-  (let ((tq `(nil ,process ,eoc)))
+to a tcp server on another machine.
+
+PROCESS-EOC is used to indicate the end of command.
+PROMPT-REGEXP the prompt regex, is used to clean the response buffer's content."
+
+  (let ((tq `(nil ,process ,process-eoc ,prompt-regexp)))
     (set-process-filter process
                         (lambda (_p s)
-                          (iclj-tq-filter tq s)))
+                          (iclj-tq-proc-filter tq s)))
     tq))
 
 (defun iclj-tq-queue-add (tq
@@ -172,12 +172,28 @@ to the TQ head."
   (let ((process (iclj-tq-proc tq))
         (input (iclj-tq-queue-head-input tq))
         (waitp (iclj-tq-queue-head-waitp tq)))
-    ;; send region or string to the process
-    (process-send-string process (concat input "\n"))
-    ;; when waitp is non-nil do not wait for the response,
-    ;; call the handler ASAP
-    (when (not waitp)
-      (iclj-tq-call-handler tq))))
+    ;; verify if process is alive
+    (if (not (process-live-p process))
+        (progn
+          ;; delete process structure
+          (delete-process process)
+          ;; display log message
+          (iclj-util-log "error: connection isn't live" t)
+          ;; clean transmission queue
+          (setf tq nil))
+      ;; reset end of command state variable
+      (setq iclj-tq-proc-eoc-found nil)
+      ;; send region or string to the process
+      (process-send-string process (concat input "\n"))
+      ;; when waitp is non-nil do not wait for the response,
+      ;; call the handler ASAP
+      (if (not waitp)
+          (iclj-tq-call-handler tq)
+        ;; wait for the end of command indicator
+        ;; TODO: add timeout here
+        (while (and (null iclj-tq-proc-eoc-found)
+                    (accept-process-output process 1 0 t))
+          (sleep-for 0.01))))))
 
 (defun iclj-tq-queue-head-kill-temp-buffer (tq)
   "Kill temporary output buffer if TQ queue head waitp is non-nil."
@@ -226,119 +242,64 @@ This produces more reliable results with some processes."
       (iclj-tq-proc-send-input tq))))
 
 (defun iclj-tq-proc-delete (tq)
-  "Shut down transaction queue TQ, terminating the process."
-  (delete-process (iclj-tq-proc tq)))
+  "Shut down transaction queue TQ terminating the process.
+This function always returns nil."
+  (progn (delete-process (iclj-tq-proc tq)) nil))
 
-(defun iclj-tq-open (host port eoc)
+(defun iclj-tq-open (host port process-eoc &optional prompt-regexp)
   "Open transaction queue using the HOST/PORT to create the process.
-EOC is the end of command indicator (arbitrary)."
-  (setq iclj-tq
-        (let* ((proc (open-network-stream iclj-tq-stream-name
-                                          nil
-                                          host
-                                          port
-                                          :return-list nil
-                                          :type 'network
-                                          :nogreeting t
-                                          :nowait nil))
-               (tq (iclj-tq--make proc eoc)))
-          ;; set our process filter
-          (set-process-filter proc
-                              `(lambda (p s) (iclj-tq-filter ',tq s)))
-          ;; return transaction queue
-          tq)))
 
-(defvar iclj-tq-host-history '()
-  "Host history list.")
+PROCESS-EOC, the process end of command indicator (arbitrary).
 
-(defvar iclj-tq-default-port "5555"
-  "Default port number.")
+When non-nil PROMPT-REGEXP will be used to filter the output chunk,
+removing it from the response.
 
-(defun iclj-tq-read-port (&optional default-port)
-  "Read port, when DEFAULT-PORT is non-nil suggest it."
-  (let* ((fmt (if default-port "Port[%s]: " "Port: %s"))
-         (port (read-string (format fmt (or default-port ""))
-                            nil
-                            nil
-                            default-port)))
-    ;; return the choose port or the default one
-    (if (string= port "")
-        default-port
-      port)))
+This function returns an instance of transmission queue, that as to be cached
+by the caller."
+  (let* ((process (open-network-stream iclj-tq-stream-name
+                                       nil
+                                       host
+                                       port
+                                       ;; :end-of-command iclj-tq-eoc
+                                       :return-list nil
+                                       :type 'network
+                                       :nogreeting t
+                                       :nowait nil))
+         (tq (iclj-tq--make process
+                            process-eoc
+                            prompt-regexp)))
+    ;; set our process filter
+    (set-process-filter process
+                        `(lambda (p s) (iclj-tq-proc-filter ',tq s)))
+    ;; return transaction queue instance
+    tq))
 
-(defun iclj-tq-read-host ()
-  "Read host and port."
-  (let* ((host-history (or (car-safe iclj-tq-host-history) ""))
-         (host-prompt (format
-                       (if (string= host-history "")
-                           "Host: "
-                         "Host[%s]: ")
-                       host-history)))
-    ;; read the values using the `minibuffer'
-    (read-string host-prompt
-                 nil
-                 host-history
-                 iclj-tq-host-history)))
-
-(defun iclj-tq-log (msg)
-  "Show log MSG to the user and return nil."
-  (progn (message "%s" (concat "[ICLJ-TQ]: " msg))
-         (message nil)
-         nil))
-
-;;;###autoload
-(defun iclj-tq-make (host port)
-  "Make TQ Clojure repl server stream using the (HOST PORT) parameters."
-  (interactive (list
-                (iclj-tq-read-host)
-                (iclj-tq-read-port iclj-tq-default-port)))
-  ;; maybe cache host to be used again
-  (unless (member host iclj-tq-host-history)
-    (push host iclj-tq-host-history))
-  ;; update host and port, if necessary
-  (cond ((string= host "")
-         (iclj-tq-log "error: missing host value!"))
-        ;; default: tries open host/port stream and cache it
-        (t (condition-case err
-               (iclj-tq-open host port iclj-tq-eoc)
-             ;; handle errors
-             (error (iclj-tq-log (concat "error: " (cadr err))))
-             ;; handle success
-             (:success (iclj-tq-log "success: TQ created!"))))))
-
-;;;###autoload
-(defun iclj-tq-erase ()
-  "Erase current transmission queue."
-  (interactive)
-  ;; erase if necessary
-  (setq iclj-tq (progn (and iclj-tq (iclj-tq-proc-delete iclj-tq) nil)))
-  ;; just a hint to the user
-  (iclj-tq-log "TQ erased!"))
-
-(defun iclj-tq-send (input waitp handler &optional orig-buffer)
-  "This sends the INPUT string to the process.
+(defun iclj-tq-send (tq input waitp handler &optional orig-buffer)
+  "This sends the INPUT string to the process of TQ instance.
 
 If WAITP is non-nil we call the HANDLER function ASAP, otherwise we
 wait for the response end of command indicator.
 
 The HANDLER is called passing two arguments: the response and
 the ORIG-BUFFER."
-  ;; make transaction queue if necessary
-  (unless iclj-tq (call-interactively 'iclj-tq-make))
   ;; and enqueue the operation
-  (when iclj-tq
-    (iclj-tq-enqueue iclj-tq
-                     input
-                     ;; indicates if we should wait for the end of command
-                     ;; indicator: if non-nil call the handler after the EOC
-                     ;; insertion, otherwise call it ASAP
-                     waitp
-                     ;; handler: function that will handler the operation
-                     handler
-                     ;; origin buffer (optional)
-                     orig-buffer
-                     ;; delay send
-                     t)))
+  (iclj-tq-enqueue
+   ;; instance of the transmission queue
+   tq
+   ;; input data that will be send to the REPL network stream
+   input
+   ;; indicates if we should wait for the end of command
+   ;; indicator: if non-nil call the handler after the EOC
+   ;; insertion, otherwise call handler ASAP
+   waitp
+   ;; handler: function that will handler the operation
+   handler
+   ;; origin buffer (optional), this information can be use to the function
+   ;; handler, the eval function handler for example uses it to display
+   ;; the response overlay
+   orig-buffer
+   ;; delay send
+   t))
 
 (provide 'iclj-tq)
 
