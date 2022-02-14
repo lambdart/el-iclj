@@ -36,8 +36,56 @@
 
 (require 'iclj-tq)
 (require 'iclj-ns)
-(require 'iclj-comint)
+(require 'iclj-util)
 (require 'iclj-op-table)
+
+(require 'comint nil t)
+
+(defvar iclj-op-tq nil
+  "Default tq instance cache.")
+
+(defvar iclj-op-subprompt-regexp " *#_=> *"
+  "Regexp to recognize subprompts in the Inferior Clojure mode.")
+
+(defvar iclj-op-prompt-regexp "\\( *#_\\|[^=> \n]+\\)=> *"
+  "Regexp to recognize both main prompt and subprompt for comint.")
+
+(defun iclj-op-with-eoc (op)
+  "Return OP with end of command indicator."
+  (format "%s (print %S)" op iclj-util-eoc))
+
+;;;###autoload
+(defun iclj-op-connect (host port)
+  "Make TQ Clojure repl server stream using the (HOST PORT) parameters."
+  (interactive (list
+                (iclj-util-read-host)
+                (iclj-util-read-port iclj-util-port)))
+  ;; maybe cache host to be used again
+  (unless (member host iclj-util-host-history)
+    (push host iclj-util-host-history))
+  ;; update host and port, if necessary
+  (cond ((string= host "")
+         (iclj-util-log "error: missing host value!" t))
+        ;; default: tries open host/port stream and cache it
+        (t (condition-case err
+               (setq iclj-op-tq
+                     (iclj-tq-open host
+                                   port
+                                   iclj-util-eoc
+                                   iclj-op-prompt-regexp))
+             ;; handle errors
+             (error (iclj-util-log (concat "error: " (cadr err)) t))
+             ;; handle success
+             (:success (iclj-util-log "success: TQ connected!" t))))))
+
+;;;###autoload
+(defun iclj-op-disconnect ()
+  "Disconnect from transmission queue."
+  (interactive)
+  ;; erase if necessary
+  (setq iclj-op-tq (and iclj-op-tq (iclj-tq-proc-delete iclj-op-tq)))
+  ;; just a hint to the user
+  (iclj-util-log "TQ disconnected!" t))
 
 (defun iclj-op-default-handler (output-buffer &optional _)
   "Switch to OUTPUT-BUFFER (the process output buffer)."
@@ -52,25 +100,34 @@
                 temp)))
     (format op-fmt str)))
 
-(defun iclj-op-tq-send (op-key &rest input)
+(defun iclj-op-tq-send (op-key waitp &rest input)
   "Send the operation defined by OP-KEY.
+
+WAITP, when non-nil wait the end of command indicator before call the proper
+handler.
+
 INPUT, the string or the region bounds."
-  (let ((op-plist (iclj-op-table-get-plist op-key)))
-    (when op-plist
-      (let* ((op-format (plist-get op-plist :fmt))
-             ;; default handler
-             (op-handler (or (plist-get op-plist :fun)
-                             'iclj-op-default-handler))
-             ;; default don't wait for the output
-             (op-waitp (plist-get op-plist :waitp))
-             ;; parse final operation input
-             (op-input (iclj-op-with-eoc
-                        (iclj-op-parse-input input op-format))))
-        ;; transmission queue send
-        (iclj-tq-send op-input
-                      op-waitp
-                      op-handler
-                      (current-buffer))))))
+  ;; insure transmission queue connection
+  (or iclj-op-tq (call-interactively 'iclj-op-connect))
+  ;; parse and send the operation if operation queue was proper initialized
+  (when iclj-op-tq
+    (let ((op-plist (iclj-op-table-get-plist op-key)))
+      (when op-plist
+        (let* ((op-format (plist-get op-plist :fmt))
+               ;; default handler
+               (op-handler (or (plist-get op-plist :fun)
+                               'iclj-op-default-handler))
+               ;; wait for the output?
+               (op-waitp (or waitp (plist-get op-plist :waitp)))
+               ;; parse final operation input
+               (op-input (iclj-op-with-eoc
+                          (iclj-op-parse-input input op-format))))
+          ;; transmission queue send
+          (iclj-tq-send iclj-op-tq
+                        op-input
+                        op-waitp
+                        op-handler
+                        (current-buffer)))))))
 
 (defun iclj-op-thing-at-point (&optional thing)
   "Return THING at point.
@@ -99,13 +156,13 @@ PROMPT, non-nil means minibuffer prompt."
     (end-of-defun)
     (let ((end (point)))
       (beginning-of-defun)
-      (iclj-op-tq-send 'eval-last (point) end))))
+      (iclj-op-tq-send 'eval-last nil (point) end))))
 
 (defun iclj-op-eval-sexp (sexp)
   "Eval SEXP string, i.e, send it to Clojure comint process."
   (interactive (iclj-op-minibuffer-read 'sexp "Eval"))
   ;; eval string symbolic expression
-  (iclj-op-tq-send 'eval sexp))
+  (iclj-op-tq-send 'eval nil sexp))
 
 (defun iclj-op-eval-last-sexp ()
   "Send the previous sexp to the inferior process."
@@ -119,7 +176,7 @@ PROMPT, non-nil means minibuffer prompt."
 (defun iclj-op-eval-region (beg end)
   "Eval BEG/END region."
   (interactive "r")
-  (iclj-op-tq-send 'eval beg end))
+  (iclj-op-tq-send 'eval nil beg end))
 
 (defun iclj-op-eval-buffer ()
   "Eval current buffer."
@@ -128,6 +185,7 @@ PROMPT, non-nil means minibuffer prompt."
     (widen)
     (let ((case-fold-search t))
       (iclj-op-tq-send 'eval
+                       nil
                        (point-min)
                        (point-max)))))
 
@@ -175,7 +233,7 @@ considered a Clojure source file by `iclj-load-file'.")
   "Invoke Clojure (run-tests) operation."
   (interactive)
   ;; send run test operation
-  (iclj-op-tq-send 'run-tests ""))
+  (iclj-op-tq-send 'run-tests nil ""))
 
 (defun iclj-op-load-tests-and-run (filename)
   "Load FILENAME and run test."
@@ -185,39 +243,39 @@ considered a Clojure source file by `iclj-load-file'.")
   ;; send `eval-buffer' operation with file contents in a temporary buffer
   (iclj-op--eval-file-contents filename)
   ;; send run test operation
-  (iclj-op-tq-send 'run-tests ""))
+  (iclj-op-tq-send 'run-tests nil ""))
 
 (defun iclj-op-doc (input)
   "Describe identifier INPUT (string) operation."
   (interactive (iclj-op-minibuffer-read 'sexp "Doc"))
   ;; send documentation operation
-  (iclj-op-tq-send 'doc input))
+  (iclj-op-tq-send 'doc nil input))
 
 (defun iclj-op-find-doc (input)
   "Find INPUT documentation ."
   (interactive (iclj-op-minibuffer-read 'symbol "Find-doc"))
   ;; send find doc operation
-  (iclj-op-tq-send 'find-doc input))
+  (iclj-op-tq-send 'find-doc nil input))
 
 (defun iclj-op-apropos (input)
   "Invoke Clojure (apropos INPUT) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read 'symbol "Apropos"))
   ;; send apropos operation
-  (iclj-op-tq-send 'apropos input))
+  (iclj-op-tq-send 'apropos nil input))
 
 (defun iclj-op-all-ns ()
   "Pretty print (all-ns)."
   (interactive)
   ;; send ns-vars operation
-  (iclj-op-tq-send 'all-ns ""))
+  (iclj-op-tq-send 'all-ns nil ""))
 
 (defun iclj-op-ns-vars ()
   "List Namespace symbols."
   ;; map string function parameter
   (interactive)
   ;; first get namespaces list
-  (iclj-op-tq-send 'ns-list "")
+  (iclj-op-tq-send 'ns-list t "")
   ;; update input
   (let ((namespace (completing-read "Namespace: "
                                     iclj-ns-cache-list
@@ -225,14 +283,14 @@ considered a Clojure source file by `iclj-load-file'.")
                                     t
                                     nil)))
     ;; send ns-vars operation
-    (iclj-op-tq-send 'ns-vars namespace)))
+    (iclj-op-tq-send 'ns-vars nil namespace)))
 
 (defun iclj-op-set-ns ()
   "Invoke Clojure (in-ns INPUT) operation."
   ;; map string function parameter
   (interactive)
   ;; first get namespaces list
-  (iclj-op-tq-send 'ns-list "")
+  (iclj-op-tq-send 'ns-list t "")
   ;; update input
   (let ((namespace (completing-read "Namespace: "
                                     iclj-ns-cache-list
@@ -240,41 +298,41 @@ considered a Clojure source file by `iclj-load-file'.")
                                     t
                                     nil)))
     ;; send set-ns operation
-    (iclj-op-tq-send 'set-ns namespace)))
+    (iclj-op-tq-send 'set-ns t namespace)))
 
 (defun iclj-op-source (input)
   "Invoke Clojure (source INPUT) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Symbol"))
   ;; send source operation
-  (iclj-op-tq-send 'source input))
+  (iclj-op-tq-send 'source nil input))
 
 (defun iclj-op-meta (symbol)
   "Invoke Clojure (meta #'SYMBOL) operation."
   ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Symbol"))
   ;; send meta operation
-  (iclj-op-tq-send 'meta symbol))
+  (iclj-op-tq-send 'meta nil symbol))
 
 (defun iclj-op-eldoc (input)
   "Invoke \\{iclj-op-eldoc-format} operation.
 INPUT, clojure symbol string that'll be extract the necessary metadata."
   (unless (string= input "")
-    (iclj-op-tq-send 'eldoc input)))
+    (iclj-op-tq-send 'eldoc nil input)))
 
 (defun iclj-op-macroexpand ()
   "Invoke Clojure (macroexpand form) operation."
   (interactive)
   (let ((form (buffer-substring-no-properties
                (save-excursion (backward-sexp) (point)) (point))))
-    (iclj-op-tq-send 'macroexpand form)))
+    (iclj-op-tq-send 'macroexpand nil form)))
 
 (defun iclj-op-macroexpand-1 ()
   "Invoke Clojure (macroexpand-1 form) operation."
   (interactive)
   (let ((form (buffer-substring-no-properties
                (save-excursion (backward-sexp) (point)) (point))))
-    (iclj-op-tq-send 'macroexpand-1 form)))
+    (iclj-op-tq-send 'macroexpand-1 nil form)))
 
 (provide 'iclj-op)
 
