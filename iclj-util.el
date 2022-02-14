@@ -34,11 +34,51 @@
 ;;
 ;;; Code:
 
-(defun iclj-util-setup-font-locks ()
-  "Setup default font locks."
-  (and (require 'clojure-mode nil t)
-       (fboundp 'clojure-font-lock-setup)
-       (funcall 'clojure-font-lock-setup)))
+(defvar iclj-util-host-history '()
+  "Host history list.")
+
+(defvar iclj-util-port "5555"
+  "Default port number.")
+
+(defvar iclj-util-eoc "\n--ICLJ-EOC-INDICATOR--\n"
+  "Default end of command indicator.")
+
+(defun iclj-util-log (msg &optional echop)
+  "Show log MSG to the user and return nil.
+When ECHOP is non-nil show the logs in the echo area."
+  (progn
+    ;; show log message in the *Message* buffer
+    (message "%s" (concat "[ICLJ-TQ]: " msg))
+    ;; clean echo area
+    (or echop (message nil))
+    ;; always return nil
+    nil))
+
+(defun iclj-util-read-port (&optional default-port)
+  "Read port, when DEFAULT-PORT is non-nil suggest it."
+  (let* ((fmt (if default-port "Port[%s]: " "Port: %s"))
+         (port (read-string (format fmt (or default-port ""))
+                            nil
+                            nil
+                            default-port)))
+    ;; return the choose port or the default one
+    (if (string= port "")
+        default-port
+      port)))
+
+(defun iclj-util-read-host ()
+  "Read host and port."
+  (let* ((host-history (or (car-safe iclj-util-host-history) ""))
+         (host-prompt (format
+                       (if (string= host-history "")
+                           "Host: "
+                         "Host[%s]: ")
+                       host-history)))
+    ;; read the values using the `minibuffer'
+    (read-string host-prompt
+                 nil
+                 host-history
+                 iclj-util-host-history)))
 
 (defun iclj-util-bounds-of-thing-at-point ()
   "Return expression bounds at point."
@@ -105,18 +145,32 @@ If REGEXP is non-nil remove/filter it from the content."
           (buffer-substring-no-properties (point-min)
                                           (point-max)))))))
 
+(defvar iclj-util-local-keymap
+  (let ((keymap (make-sparse-keymap)))
+    ;; quick commands
+    (define-key keymap (kbd "C-q") (lambda ()
+                                     (interactive)
+                                     (kill-buffer (current-buffer))))
+    ;; return keymap structure/object
+    keymap)
+  "Auxiliary keymap to provide quick-access to some useful commands.")
+
 (defun iclj-util-get-buffer-create (buffer-or-name)
   "Get or create redirect buffer using the specify BUFFER-OR-NAME."
   (let ((buffer (get-buffer buffer-or-name)))
-    (if (buffer-live-p buffer) buffer
+    (if (buffer-live-p buffer)
+        buffer
       (let ((buffer (get-buffer-create buffer-or-name)))
         (with-current-buffer buffer
           ;; make the buffer read only
           (setq-local buffer-read-only t)
-          ;; enable clojure-mode if available
+          ;; verifies if clojure-mode is available
           (and (require 'clojure-mode nil t)
-               (fboundp 'clojure-font-lock-setup)
-               (clojure-font-lock-setup)))
+               (fboundp 'clojure-mode)
+               (clojure-mode))
+          ;; set our local map
+          (use-local-map
+           (make-composed-keymap iclj-util-local-keymap (current-local-map))))
         ;; return the buffer
         buffer))))
 
@@ -143,7 +197,8 @@ the load or compile."
     (when (and buffer
                (buffer-modified-p buffer)
                (y-or-n-p (format "Save buffer %s first? " (buffer-name buffer))))
-      (with-current-buffer buffer (save-buffer)))))
+      (with-current-buffer buffer
+        (save-buffer)))))
 
 (provide 'iclj-util)
 
