@@ -104,52 +104,53 @@ Return the number of nested sexp the point was over or after."
   "Display eldoc documentation string.
 Parse the documentation string and its META-DATA,
 using the CALLBACK function."
-  ;; check and invoke callback function
-  (when-let ((fnsym (car meta-data))
-             (args (cadr meta-data))
-             (docstring (caddr meta-data)))
-    (and (functionp callback)
-         (not (string-empty-p docstring))
-         (funcall callback
-                  (concat args " " (iclj-eldoc-parse-docstring docstring))
-                  :thing fnsym
-                  :face font-lock-function-name-face))))
+  (when meta-data
+    ;; check and invoke callback function
+    (when-let ((fnsym (car meta-data))
+               (args (cadr meta-data))
+               (docstring (caddr meta-data)))
+      (and (functionp callback)
+           (not (string-empty-p docstring))
+           (funcall callback
+                    (concat args " " (iclj-eldoc-parse-docstring docstring))
+                    :thing fnsym
+                    :face font-lock-function-name-face)))))
 
 (defun iclj-eldoc-function (callback &rest _ignored)
   "Clojure documentation function.
 Each hook function is called with at least one argument CALLBACK,
 a function, and decides whether to display a doc short string
 about the context around point."
-  (let ((thing (iclj-eldoc-fnsym)))
-    (unless (string= thing "")
-      ;; verify if we have the same thing
-      (if (string= thing iclj-eldoc-thing)
-          (iclj-eldoc-display-docstring iclj-eldoc-meta-data callback)
-        ;; else: call the eldoc operations
-        (iclj-op-eldoc thing)
-        ;; cache eldoc callback
-        (setq iclj-eldoc-callback callback)
-        ;; cache thing
-        (setq iclj-eldoc-thing thing)
-        ;; - If the computation of said doc string (or the decision whether
-        ;; there is one at all) is expensive or can't be performed
-        ;; directly, the hook function should return a non-nil, non-string
-        ;; value and arrange for CALLBACK to be called at a later time,
-        ;; using asynchronous processes or other asynchronous mechanisms.
-        0))))
+  (when (iclj-tq-proc-live-p iclj-op-tq)
+    (let ((thing (iclj-eldoc-fnsym)))
+      (unless (string= thing "")
+        ;; verify if we have the same thing
+        (if (string= thing iclj-eldoc-thing)
+            (iclj-eldoc-display-docstring iclj-eldoc-meta-data callback)
+          ;; else: call the eldoc operations
+          (iclj-op-eldoc thing)
+          ;; cache eldoc callback
+          (setq iclj-eldoc-callback callback)
+          ;; cache thing
+          (setq iclj-eldoc-thing thing)
+          ;; - If the computation of said doc string (or the decision whether
+          ;; there is one at all) is expensive or can't be performed
+          ;; directly, the hook function should return a non-nil, non-string
+          ;; value and arrange for CALLBACK to be called at a later time,
+          ;; using asynchronous processes or other asynchronous mechanisms.
+          0)))))
 
 (defun iclj-eldoc-handler (output-buffer _)
   "Handler Eldoc OUTPUT-BUFFER to print/display the documentation."
-  (let ((content (iclj-util-buffer-content output-buffer iclj-op-table-eoc)))
+  (let ((content (iclj-util-buffer-content output-buffer iclj-util-eoc)))
     (unless (string-empty-p content)
       ;; parse output and display into echo area
       (let ((meta-data (read content)))
-        (when (listp meta-data)
-          ;; cache eldoc meta-data information
-          (setq iclj-eldoc-meta-data meta-data)
-          ;; display eldoc docstring
-          (iclj-eldoc-display-docstring iclj-eldoc-meta-data
-                                        iclj-eldoc-callback))))))
+        ;; cache eldoc meta-data information
+        (setq iclj-eldoc-meta-data (if (listp meta-data) meta-data '())))
+      ;; display eldoc docstring
+      (iclj-eldoc-display-docstring iclj-eldoc-meta-data
+                                    iclj-eldoc-callback))))
 
 (defun iclj-eldoc-enable ()
   "Enable eldoc operation."
