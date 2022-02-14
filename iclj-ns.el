@@ -39,6 +39,10 @@
 (defvar iclj-ns-cache-list '()
   "Namespaces cached list.")
 
+(defun iclj-ns-read-namespace ()
+  "Return namespace from the `iclj-ns-cache-list'."
+  (completing-read "Namespace: " iclj-ns-cache-list nil t nil))
+
 (defun iclj-ns-list-handler (output-buffer _)
   "Handler NS-LIST OUTPUT-BUFFER."
   (let ((content (iclj-util-buffer-content output-buffer iclj-util-eoc)))
