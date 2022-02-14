@@ -169,6 +169,7 @@ PROMPT, non-nil means minibuffer prompt."
   (interactive)
   ;; send region of the last expression
   (iclj-op-tq-send 'eval-last-sexp
+                   nil
                    (save-excursion (backward-sexp)
                                    (point))
                    (point)))
