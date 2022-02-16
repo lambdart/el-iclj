@@ -36,8 +36,6 @@
 
 (require 'iclj-util)
 (require 'iclj-overlay)
-(require 'iclj-op-table)
-(require 'iclj-comint)
 
 (defgroup iclj-eval nil
   "Iclj overlay features."
@@ -57,7 +55,7 @@ Overlay is the front end of choice."
     (unless iclj-overlay-enabled
       (funcall 'iclj-overlay-enable))
     (let ((last-line (iclj-util-last-line output-buffer
-                                          iclj-op-table-eoc
+                                          iclj-util-eoc
                                           "nil")))
       ;; display overlay with last-line in current buffer
       (iclj-overlay-display source-buffer
