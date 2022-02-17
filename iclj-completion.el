@@ -34,6 +34,39 @@
 ;;
 ;;; Code:
 
+(require 'iclj-util)
+(require 'iclj-op)
+(require 'iclj-apropos)
+(require 'iclj-tq)
+
+(defvar iclj-completions '())
+(defvar iclj-completion-thing nil)
+
+(defun iclj-completion--append-clean-ns (collection)
+  "Append COLLECTION after name space cleanup."
+  (append
+   (mapcar (lambda (x)
+             (replace-regexp-in-string "^.+/" "" x))
+           collection)
+   collection))
+
+(defun iclj-completion-handler (output-buffer _source-buffer)
+  "Completion OUTPUT-BUFFER handler."
+  (setq iclj-completions
+        (iclj-completion--append-clean-ns
+         (iclj-apropos-collection
+          (iclj-util-buffer-content output-buffer iclj-util-eoc)))))
+
+(defun iclj-completion-at-point (&rest _)
+  "Clojure completion at point."
+  (iclj-tq-with-live-process iclj-op-tq
+    (let* ((bounds (iclj-util-bounds-of-thing-at-point))
+           (beg (car bounds))
+           (end (cdr bounds)))
+      ;; send apropos operation
+      (iclj-op-tq-send 'apropos #'iclj-completion-handler t beg end)
+      ;; return completions
+      (list beg end iclj-completions))))
 
 (provide 'iclj-completion)
 
