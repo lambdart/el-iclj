@@ -34,16 +34,17 @@
 ;;
 ;;; Code:
 
+(require 'clojure-mode nil t)
+
 (require 'iclj-op)
 (require 'iclj-eval)
 (require 'iclj-eldoc)
 (require 'iclj-overlay)
 (require 'iclj-completion)
-(require 'clojure-mode nil t)
+(require 'iclj-comint)
 
 (defvar iclj-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "<tab>")   #'iclj-completion-at-point)
     (define-key map (kbd "C-M-x")   #'iclj-op-eval-defn) ; Gnu convention
     (define-key map (kbd "C-c C-e") #'iclj-op-eval-last-sexp)
     (define-key map (kbd "C-x C-e") #'iclj-op-eval-last-sexp)  ; Gnu convention
@@ -54,7 +55,7 @@
     (define-key map (kbd "C-c C-t") #'iclj-op-run-tests)
     (define-key map (kbd "C-c C-a") #'iclj-op-apropos)
     (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
-    (define-key map (kbd "C-c C-b") #'iclj-op-load-buffer-file-name)
+    (define-key map (kbd "C-c C-b") #'iclj-op-eval-target-buffer)
     (define-key map (kbd "C-c C-p") #'iclj-comint-remote-run)
     (define-key map (kbd "C-c C-q") #'iclj-comint-quit)
     ;; set parent keymap
@@ -118,7 +119,8 @@ The following commands are available:
   :keymap iclj-mode-map
   (iclj-mode-setup
    (if iclj-mode
-       '(iclj-define-menu iclj-eldoc-enable)
+       '(iclj-define-menu
+         iclj-eldoc-enable)
      '(iclj-eldoc-disable))))
 
 (provide 'iclj-mode)
