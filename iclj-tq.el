@@ -86,6 +86,12 @@ Buffer: process output buffer."
   "Return non-nil if queue (TQ) is empty."
   (not (iclj-tq-queue tq)))
 
+(defmacro iclj-tq-with-live-process (tq &rest body)
+  "Evaluate BODY forms if the TQ process is alive."
+  (declare (indent 1) (debug t))
+  `(when (iclj-tq-proc-live-p ,tq)
+     ,@body))
+
 (defun iclj-tq-filter-chunk (tq string)
   "Return output STRING after TQ prompt-regexp removal."
   (let ((prompt-regexp (iclj-tq-prompt-regexp tq)))
@@ -188,7 +194,7 @@ to the TQ head."
       (if (not waitp)
           (iclj-tq-call-handler tq)
         ;; wait for the end of command indicator
-        ;; TODO: add timeout here
+        ;; TODO: add timeout here (research)
         (while (and (null iclj-tq-proc-eoc-found)
                     (accept-process-output process 1 0 t))
           (sleep-for 0.01))))))
