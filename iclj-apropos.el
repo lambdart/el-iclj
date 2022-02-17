@@ -72,26 +72,11 @@
   (insert-button symbol 'symbol symbol :type 'iclj-apropos-button)
   (insert "\n"))
 
-(defun iclj-apropos-append-collection (collection)
-  "Clean name space from the COLLECTION and append it."
-  (append
-   (mapcar (lambda (x)
-             (replace-regexp-in-string "^.+/" "" x))
-           collection)
-   collection))
-
-(defun iclj-apropos-collection (output &optional cache-flag)
-  "Parse OUTPUT to a collection of string elements.
-If CACHE-FLAG is true save the collection after removing name spaces and append
-it to the original collection (this should be used in the completions
-setup phase)."
+(defun iclj-apropos-collection (output)
+  "Parse OUTPUT to a collection of string elements."
   (let ((collection (split-string (substring-no-properties output 1 -2) " ")))
-    (if (not cache-flag)
-        ;; just return the collection
-        collection
-      ;; otherwise cache it
-      (setq iclj-apropos-collection
-            (iclj-apropos-append-collection collection)))))
+    ;; just return the collection
+    collection))
 
 (defun iclj-apropos-handler (output-buffer _source-buffer)
   "Apropos OUTPUT-BUFFER operation handler."
