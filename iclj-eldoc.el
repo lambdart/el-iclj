@@ -121,7 +121,7 @@ using the CALLBACK function."
 Each hook function is called with at least one argument CALLBACK,
 a function, and decides whether to display a doc short string
 about the context around point."
-  (when (iclj-tq-proc-live-p iclj-op-tq)
+  (iclj-tq-with-live-process iclj-op-tq
     (let ((thing (iclj-eldoc-fnsym)))
       (unless (string= thing "")
         ;; verify if we have the same thing
