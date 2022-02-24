@@ -54,6 +54,15 @@ When ECHOP is non-nil show the logs in the echo area."
     ;; always return nil
     nil))
 
+(defmacro iclj-util-with-log (string force &rest body)
+  "If last BODY form execution return non-nil or FORCE: show message STRING."
+  (declare (indent 2))
+  `(let ((temp (progn ,@body)))
+     (prog1 temp
+       (and (or ,force temp)
+            (message "%s" (concat "[ICLJ]: " ,string))
+            (message nil)))))
+
 (defun iclj-util-read-port (&optional default-port)
   "Read port, when DEFAULT-PORT is non-nil suggest it."
   (let* ((fmt (if default-port "Port[%s]: " "Port: %s"))
@@ -173,6 +182,16 @@ If REGEXP is non-nil remove/filter it from the content."
            (make-composed-keymap iclj-util-local-keymap (current-local-map))))
         ;; return the buffer
         buffer))))
+
+(defun iclj-util-insert-chunk (buffer chunk)
+  "Insert CHUNK string in target BUFFER."
+  (unless (string-empty-p chunk)
+    (let ((inhibit-read-only t))
+      (when (buffer-live-p buffer)
+        (with-current-buffer buffer
+          (save-excursion
+            (goto-char (point-max))
+            (insert chunk)))))))
 
 (defun iclj-util-buffer-string (buffer-or-name)
   "Return BUFFER-OR-NAME content."
