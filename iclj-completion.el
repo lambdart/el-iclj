@@ -50,7 +50,7 @@
            collection)
    collection))
 
-(defun iclj-completion-handler (output-buffer _source-buffer)
+(defun iclj-completion-handler (output-buffer _)
   "Completion OUTPUT-BUFFER handler."
   (setq iclj-completions
         (iclj-completion--append-clean-ns
