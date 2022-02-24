@@ -88,11 +88,8 @@ Return the number of nested sexp the point was over or after."
           "" ;; return empty string
         (or (thing-at-point 'symbol) "")))))
 
-(defun iclj-eldoc-clean (output-buffer)
+(defun iclj-eldoc--clean (output-buffer)
   "Clean internal variables and operation OUTPUT-BUFFER."
-  ;; reset callback function
-  ;; (setq iclj-eldoc-callback nil)
-  ;; kill output buffer
   (kill-buffer output-buffer))
 
 (defun iclj-eldoc-parse-docstring (docstring)
@@ -100,57 +97,50 @@ Return the number of nested sexp the point was over or after."
   (let ((str (replace-regexp-in-string "[\t\n\r]+" "" docstring)))
     (replace-regexp-in-string "\s+" " " str)))
 
-(defun iclj-eldoc-display-docstring (meta-data callback)
+(defun iclj-eldoc-display-docstring (meta-data)
   "Display eldoc documentation string.
 Parse the documentation string and its META-DATA,
 using the CALLBACK function."
-  (when meta-data
-    ;; check and invoke callback function
-    (when-let ((fnsym (car meta-data))
-               (args (cadr meta-data))
-               (docstring (caddr meta-data)))
-      (and (functionp callback)
-           (not (string-empty-p docstring))
-           (funcall callback
-                    (concat args " " (iclj-eldoc-parse-docstring docstring))
-                    :thing fnsym
-                    :face font-lock-function-name-face)))))
+  (when-let* ((meta meta-data)
+              (fnsym (car meta-data))
+              (args (cadr meta-data))
+              (docstring (caddr meta-data)))
+    (and (functionp iclj-eldoc-callback)
+         (not (string-empty-p docstring))
+         (funcall iclj-eldoc-callback
+                  (concat args " " (iclj-eldoc-parse-docstring docstring))
+                  :thing fnsym
+                  :face font-lock-function-name-face))))
 
 (defun iclj-eldoc-function (callback &rest _ignored)
   "Clojure documentation function.
 Each hook function is called with at least one argument CALLBACK,
 a function, and decides whether to display a doc short string
 about the context around point."
-  (iclj-tq-with-live-process iclj-op-tq
-    (let ((thing (iclj-eldoc-fnsym)))
-      (unless (string= thing "")
-        ;; verify if we have the same thing
-        (if (string= thing iclj-eldoc-thing)
-            (iclj-eldoc-display-docstring iclj-eldoc-meta-data callback)
-          ;; else: call the eldoc operations
-          (iclj-op-eldoc thing)
-          ;; cache eldoc callback
-          (setq iclj-eldoc-callback callback)
-          ;; cache thing
-          (setq iclj-eldoc-thing thing)
-          ;; - If the computation of said doc string (or the decision whether
-          ;; there is one at all) is expensive or can't be performed
-          ;; directly, the hook function should return a non-nil, non-string
-          ;; value and arrange for CALLBACK to be called at a later time,
-          ;; using asynchronous processes or other asynchronous mechanisms.
-          0)))))
+  (setq iclj-eldoc-callback callback
+        iclj-eldoc-thing
+        (iclj-tq-with-live-process iclj-op-tq
+          (let ((thing (iclj-eldoc-fnsym)))
+            (if (string= thing iclj-eldoc-thing)
+                (iclj-eldoc-display-docstring iclj-eldoc-meta-data)
+              (iclj-op-eldoc thing))
+            ;; always cache thing will be used in next interaction
+            thing)))
+  ;; the hook function should return a non-nil, non-string
+  t)
 
 (defun iclj-eldoc-handler (output-buffer _)
   "Handler Eldoc OUTPUT-BUFFER to print/display the documentation."
-  (let ((content (iclj-util-buffer-content output-buffer iclj-util-eoc)))
-    (unless (string-empty-p content)
-      ;; parse output and display into echo area
-      (let ((meta-data (read content)))
-        ;; cache eldoc meta-data information
-        (setq iclj-eldoc-meta-data (if (listp meta-data) meta-data '())))
-      ;; display eldoc docstring
-      (iclj-eldoc-display-docstring iclj-eldoc-meta-data
-                                    iclj-eldoc-callback))))
+  (iclj-eldoc-display-docstring
+   ;; TODO: create a macro to handle this
+   (let ((content (iclj-util-buffer-content output-buffer iclj-util-eoc)))
+     (unless (string-empty-p content)
+       (setq iclj-eldoc-meta-data
+             (let ((meta-data (read content)))
+               (and (consp meta-data)
+                    meta-data))))))
+  ;; clean temporary output buffer
+  (iclj-eldoc--clean output-buffer))
 
 (defun iclj-eldoc-enable ()
   "Enable eldoc operation."
