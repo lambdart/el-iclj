@@ -228,7 +228,7 @@ considered a Clojure source file by `iclj-load-file'.")
   "Copy FILENAME contents and eval the temporary buffer."
   ;; the user is queried to see if he wants to save the buffer before
   ;; proceeding with the load or compile
-  (iclj-util-save-buffer filename)
+ (iclj-util-save-buffer filename)
   ;; cache previous directory/filename
   (setq iclj-op-prev-l/c-dir/file
         (cons (file-name-directory filename)
@@ -323,8 +323,8 @@ considered a Clojure source file by `iclj-load-file'.")
 (defun iclj-op-eldoc (input)
   "Invoke \\{iclj-op-eldoc-format} operation.
 INPUT, clojure symbol string that'll be extract the necessary metadata."
-  (unless (string= input "")
-    (iclj-op-tq-send 'eldoc nil nil input)))
+  (when (and input (not (string= input "")))
+    (iclj-op-tq-send 'eldoc nil t input)))
 
 (defun iclj-op-macroexpand ()
   "Invoke Clojure (macroexpand form) operation."
