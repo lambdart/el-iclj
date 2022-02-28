@@ -64,7 +64,7 @@
     (doc            . (:fmt "(clojure.repl/doc %s)"))
     (find-doc       . (:fmt "(clojure.repl/find-doc %S)"))
     (run-tests      . (:fmt "(clojure.test/run-tests)"))
-    (eldoc          . (:fun iclj-eldoc-handler :fmt ,iclj-op-eldoc-fmt :waitp t))
+    (eldoc          . (:fun iclj-eldoc-handler :fmt ,iclj-op-eldoc-fmt))
     (apropos        . (:fun iclj-apropos-handler
                        :fmt "(sort (clojure.repl/apropos %S))"
                        :waitp t))
