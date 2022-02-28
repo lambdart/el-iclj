@@ -50,10 +50,6 @@
 (defvar iclj-op-prompt-regexp "\\( *#_\\|[^=> \n]+\\)=> *"
   "Regexp to recognize both main prompt and subprompt for comint.")
 
-(defun iclj-op-with-eoc (op)
-  "Return OP with end of command indicator."
-  (format "%s (print %S)" op iclj-util-eoc))
-
 ;;;###autoload
 (defun iclj-op-connect (host port)
   "Make TQ Clojure repl server stream using the (HOST PORT) parameters."
@@ -65,18 +61,18 @@
     (push host iclj-util-host-history))
   ;; update host and port, if necessary
   (cond ((string= host "")
-         (iclj-util-log "error: missing host value!" t))
+         (iclj-util-log "error: missing host value!"))
         ;; default: tries open host/port stream and cache it
         (t (condition-case err
                (setq iclj-op-tq
-                     (iclj-tq-open host
+                     (iclj-tq-make host
                                    port
                                    iclj-util-eoc
                                    iclj-op-prompt-regexp))
              ;; handle errors
-             (error (iclj-util-log (concat "error: " (cadr err)) t))
+             (error (iclj-util-log (concat "error: " (cadr err))))
              ;; handle success
-             (:success (iclj-util-log "success: TQ connected!" t))))))
+             (:success (iclj-util-log "success: TQ connected!"))))))
 
 ;;;###autoload
 (defun iclj-op-disconnect ()
@@ -87,75 +83,72 @@
   ;; just a hint to the user
   (iclj-util-log "TQ disconnected!" t))
 
-(defun iclj-op-default-handler (output-buffer &optional _)
+(defun iclj-op--default-handler (output-buffer &optional _)
   "Switch to OUTPUT-BUFFER (the process output buffer)."
   (save-excursion
     (switch-to-buffer output-buffer)))
 
-(defun iclj-op-parse-input (input op-fmt)
+(defun iclj-op--add-eoc (op)
+  "Return OP with end of command indicator."
+  (format "%s (print %S)" op iclj-util-eoc))
+
+(defun iclj-op--parse-input (input op-fmt)
   "Format INPUT (string or region) with OP-FMT (operation format)."
-  (let* ((temp (car input))
-         (str (if (not (stringp temp))
-                  (apply 'buffer-substring-no-properties input)
-                temp)))
-    (format op-fmt str)))
+  (iclj-op--add-eoc
+   (format op-fmt (let* ((temp (car input))
+                         (str (if (not (stringp temp))
+                                  (apply 'buffer-substring-no-properties input)
+                                temp)))
+                    str))))
+
+(defun iclj-op--ensure-connection ()
+  "Return cached transmission queue or create the connection."
+  (or
+   (setq iclj-op-tq
+         (if (and iclj-op-tq
+                  (not (iclj-tq-proc-live-p iclj-op-tq)))
+             nil
+           iclj-op-tq))
+   (call-interactively 'iclj-op-connect)))
 
 (defun iclj-op-tq-send (op-key handler waitp &rest input)
   "Send the operation defined by OP-KEY.
+
 HANDLER, function that will be called by the transmission queue with the
 output buffer.
+
 WAITP, when non-nil wait the end of command indicator before call the proper
 handler.
+
 INPUT, the string or the region bounds."
-  ;; first verify if the process is alive
-  ;; clean transmission queue if necessary
-  (setq iclj-op-tq (if (and iclj-op-tq
-                            (not (process-live-p (iclj-tq-proc iclj-op-tq))))
-                       nil
-                     iclj-op-tq))
-  ;; insure transmission queue connection
-  (or iclj-op-tq (call-interactively 'iclj-op-connect))
-  ;; parse and send the operation if operation queue was proper initialized
-  (when iclj-op-tq
+  (when (iclj-op--ensure-connection)
     (let ((op-plist (iclj-op-table-get-plist op-key)))
       (when op-plist
-        (let* ((op-format (plist-get op-plist :fmt))
-               ;; default handler
-               (op-handler (or handler
-                               (plist-get op-plist :fun)
-                               'iclj-op-default-handler))
-               ;; wait for the output?
-               (op-waitp (or waitp (plist-get op-plist :waitp)))
-               ;; parse final operation input
-               (op-input (iclj-op-with-eoc
-                          (iclj-op-parse-input input op-format))))
-          ;; transmission queue send
-          (iclj-tq-enqueue iclj-op-tq
-                           op-input
-                           op-waitp
-                           op-handler
-                           (current-buffer)
-                           t))))))
-
-(defun iclj-op-thing-at-point (&optional thing)
-  "Return THING at point.
-See the documentation of `thing-at-point' to understand what
-'thing' means."
-  (or (let ((bounds (bounds-of-thing-at-point (or thing 'symbol))))
-        (when bounds
-          (buffer-substring-no-properties (car bounds)
-                                          (cdr bounds))))
-      ""))
+        (iclj-tq-enqueue iclj-op-tq
+                         (iclj-op--parse-input input (plist-get op-plist :fmt))
+                         (or waitp (plist-get op-plist :waitp))
+                         (or handler
+                             (plist-get op-plist :fun)
+                             'iclj-op--default-handler)
+                         ;; source buffer
+                         (current-buffer)
+                         ;; delay flag
+                         t)))))
 
 (defun iclj-op-minibuffer-read (&optional thing prompt)
   "Read string using minibuffer.
 THING, non-nil means grab thing at point (default).
 PROMPT, non-nil means minibuffer prompt."
-  (let* ((def (iclj-op-thing-at-point thing))
-         (fmt (if (not thing) "%s: " "%s[%s]: "))
-         (prompt (format fmt (or prompt "String") def)))
-    ;; return the read list string
-    (list (read-string prompt nil nil def))))
+  (let ((def (iclj-util-thing-at-point thing)))
+    (list (read-string
+           (apply 'format `(,(if (not thing)
+                                 "%s: "
+                               "%s[%s]: ")
+                            ,(or prompt "Input")
+                            ,def))
+           nil
+           nil
+           def))))
 
 (defun iclj-op-eval-defn ()
   "Send definition to the Clojure comint process."
@@ -228,7 +221,7 @@ considered a Clojure source file by `iclj-load-file'.")
   "Copy FILENAME contents and eval the temporary buffer."
   ;; the user is queried to see if he wants to save the buffer before
   ;; proceeding with the load or compile
- (iclj-util-save-buffer filename)
+  (iclj-util-save-buffer filename)
   ;; cache previous directory/filename
   (setq iclj-op-prev-l/c-dir/file
         (cons (file-name-directory filename)
