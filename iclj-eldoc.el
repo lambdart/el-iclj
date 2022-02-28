@@ -34,10 +34,7 @@
 ;;
 ;;; Code:
 
-;; builtin
 (require 'subr-x)
-
-;; internal
 (require 'iclj-op)
 (require 'iclj-tq)
 (require 'iclj-util)
@@ -88,14 +85,16 @@ Return the number of nested sexp the point was over or after."
           "" ;; return empty string
         (or (thing-at-point 'symbol) "")))))
 
-(defun iclj-eldoc--clean (output-buffer)
-  "Clean internal variables and operation OUTPUT-BUFFER."
-  (kill-buffer output-buffer))
+;; (defun iclj-eldoc--clean (output-buffer)
+;;   "Clean internal variables and operation OUTPUT-BUFFER."
+;;   (kill-buffer output-buffer))
 
-(defun iclj-eldoc-parse-docstring (docstring)
-  "Parse DOCSTRING output documentation string."
-  (let ((str (replace-regexp-in-string "[\t\n\r]+" "" docstring)))
-    (replace-regexp-in-string "\s+" " " str)))
+(defun iclj-eldoc-docstring (string)
+  "Return format documentation STRING."
+  string)
+
+;; (let ((str (replace-regexp-in-string "[\t\n\r]+" "" docstring)))
+;;     (replace-regexp-in-string "\s+" " " str)))
 
 (defun iclj-eldoc-display-docstring (meta-data)
   "Display eldoc documentation string.
@@ -104,20 +103,22 @@ using the CALLBACK function."
   (when-let* ((meta meta-data)
               (fnsym (car meta-data))
               (args (cadr meta-data))
-              (docstring (caddr meta-data)))
-    (and (functionp iclj-eldoc-callback)
-         (not (string-empty-p docstring))
-         (funcall iclj-eldoc-callback
-                  (concat args " " (iclj-eldoc-parse-docstring docstring))
-                  :thing fnsym
-                  :face font-lock-function-name-face))))
+              (docstring (concat args
+                                 " "
+                                 (iclj-eldoc-docstring (caddr meta-data)))))
+    (funcall iclj-eldoc-callback
+             docstring
+             :thing fnsym
+             :face font-lock-function-name-face)))
 
 (defun iclj-eldoc-function (callback &rest _ignored)
   "Clojure documentation function.
 Each hook function is called with at least one argument CALLBACK,
 a function, and decides whether to display a doc short string
 about the context around point."
-  (setq iclj-eldoc-callback callback
+  (setq iclj-eldoc-callback (if (functionp callback)
+                                callback
+                              (lambda (&rest _) nil))
         iclj-eldoc-thing
         (iclj-tq-with-live-process iclj-op-tq
           (let ((thing (iclj-eldoc-fnsym)))
@@ -132,15 +133,11 @@ about the context around point."
 (defun iclj-eldoc-handler (output-buffer _)
   "Handler Eldoc OUTPUT-BUFFER to print/display the documentation."
   (iclj-eldoc-display-docstring
-   ;; TODO: create a macro to handle this
    (let ((content (iclj-util-buffer-content output-buffer iclj-util-eoc)))
-     (unless (string-empty-p content)
-       (setq iclj-eldoc-meta-data
-             (let ((meta-data (read content)))
-               (and (consp meta-data)
-                    meta-data))))))
-  ;; clean temporary output buffer
-  (iclj-eldoc--clean output-buffer))
+     (and t (kill-buffer output-buffer))
+     (setq iclj-eldoc-meta-data
+           (let ((meta-data (read (or content "()"))))
+             (and (consp meta-data) meta-data))))))
 
 (defun iclj-eldoc-enable ()
   "Enable eldoc operation."
@@ -155,4 +152,3 @@ about the context around point."
 (provide 'iclj-eldoc)
 
 ;;; iclj-eldoc.el ends here
-
