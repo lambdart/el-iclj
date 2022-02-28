@@ -108,7 +108,6 @@ Buffer: process output buffer."
 
 (defun iclj-tq-proc-filter (tq string)
   "Cache TQ output STRING."
-  ;; call functions
   (mapc (lambda (fn)
           (and fn (funcall fn tq)))
         (if (setq iclj-tq-proc-eoc-found
@@ -129,21 +128,6 @@ Buffer: process output buffer."
               iclj-tq-queue-pop)
           '())))
 
-(defun iclj-tq--make (process process-eoc &optional prompt-regexp)
-  "Make and return a transaction queue that communicates with PROCESS.
-PROCESS should be a sub process capable of sending and receiving
-streams of bytes.  It may be a local process, or it may be connected
-to a tcp server on another machine.
-
-PROCESS-EOC is used to indicate the end of command.
-PROMPT-REGEXP the prompt regex, is used to clean the response buffer's content."
-
-  (let ((tq `(nil ,process ,process-eoc ,prompt-regexp)))
-    (set-process-filter process
-                        (lambda (_p s)
-                          (iclj-tq-proc-filter tq s)))
-    tq))
-
 (defun iclj-tq-queue-add (tq
                           input
                           waitp
@@ -152,44 +136,49 @@ PROMPT-REGEXP the prompt regex, is used to clean the response buffer's content."
                           temp-buffer)
   "Add queue element: (INPUT WAIT-RESP-P HANDLER ORIG-BUFFER TEMP-BUFFER)
 to the TQ head."
-  (setcar tq (nconc (iclj-tq-queue tq)
-                    `((,input
-                       ,waitp
-                       ,handler
-                       ,orig-buffer .
-                       ,temp-buffer))))
-  t)
+  (prog1 t
+    (setcar tq (nconc (iclj-tq-queue tq)
+                      `((,input
+                         ,waitp
+                         ,handler
+                         ,orig-buffer .
+                         ,temp-buffer))))))
 
-;; TODO: research macro here
-(defun iclj-tq-wait--proc-output (tq)
-  "Wait for TQ process output."
+(defun iclj-tq-wait--proc-loop (tq)
+  "Wait TQ process output loop."
+  ;; TODO: add timeout
   (while (and (null iclj-tq-proc-eoc-found)
               (accept-process-output (iclj-tq-proc tq) 1 0 t))
     (sleep-for 0.01)))
 
-(defun iclj-tq--proc-send-input (tq)
-  "Wait for TQ process output."
-  (ignore-errors
-    (process-send-string
-     (iclj-tq-proc tq)
-     (concat (iclj-tq-queue-head-input tq) "\n"))))
+(defmacro iclj-tq-wait-proc-output (tq &rest body)
+  "Evaluate BODY forms after TQ process output confirmation."
+  (declare (indent 1)
+           (debug t))
+  `(progn
+     (mapc (lambda (fn) (funcal fn ,tq))
+           '(iclj-tq-proc-send-input
+             iclj-wait--proc-loop))
+     ,@body))
+
+(defun iclj-tq--proc-send-input (proc string)
+  "Send STRING to PROC stream."
+  (if (not (process-live-p proc))
+      (prog1 nil (iclj-tq-proc-delete proc))
+    (prog1 t
+      ;; reset eoc indicator variable
+      (setq iclj-tq-proc-eoc-found nil)
+      ;; send string to process stream
+      (process-send-string proc (concat string "\n")))))
 
 (defun iclj-tq-proc-send-input (tq)
   "Send TQ input using the correct process-send function."
-  (let ((proc (iclj-tq-proc tq)))
-    ;; verify if process is alive
-    (if (not (process-live-p proc))
-        (iclj-tq-proc-delete proc))
-    ;; reset end of command state variable
-    (setq iclj-tq-proc-eoc-found nil)
-    ;; send tq input to process
-    (iclj-tq--proc-send-input tq)
-    ;; when waitp is non-nil do not wait for the response,
-    ;; call the handler ASAP
-    (and (not (iclj-tq-queue-head-waitp tq))
-         (iclj-tq-call-handler tq))))
-
-;; (iclj-tq-wait--proc-output tq))))
+  (and (iclj-tq--proc-send-input (iclj-tq-proc tq)
+                                 (iclj-tq-queue-head-input tq))
+       ;; when waitp is non-nil don't wait for the response,
+       ;; call the handler function ASAP
+       (not (iclj-tq-queue-head-waitp tq))
+       (iclj-tq-call-handler tq)))
 
 (defun iclj-tq-queue-head-kill-temp-buffer (tq)
   "Kill temporary output buffer if TQ queue head waitp is non-nil."
@@ -198,12 +187,11 @@ to the TQ head."
 
 (defun iclj-tq-queue-pop (tq)
   "Pop TQ queue element."
-  (iclj-tq-queue-head-kill-temp-buffer tq)
-  ;; update TQ car
-  (setcar tq (cdr (car tq)))
-  ;; send next queue operation (if any)
-  (or (iclj-tq-queue-empty-p tq)
-      (iclj-tq-proc-send-input tq)))
+  (mapc (lambda (fn) (funcall fn tq))
+        `(iclj-tq-queue-head-kill-temp-buffer
+          (lambda (tq) (setcar tq (cdr (car tq))))
+          (lambda (tq) (or (iclj-tq-queue-empty-p tq)
+                           (iclj-tq-proc-send-input tq))))))
 
 (defun iclj-tq-enqueue (tq
                         input
@@ -246,16 +234,33 @@ This function always returns nil."
   (iclj-util-with-log "process deleted" t
     (delete-process (iclj-tq-proc tq))))
 
-(defun iclj-tq-open (host port process-eoc &optional prompt-regexp)
+(defun iclj-tq--make (process process-eoc &optional prompt-regexp)
+  "Set PROCESS filter and return the transaction queue.
+
+PROCESS should be a sub process capable of sending and receiving
+streams of bytes. It may be a local process, or it may be connected
+to a tcp server on another machine.
+
+PROCESS-EOC is used to indicate the end of command.
+
+PROMPT-REGEXP the prompt regex, is used to clean the response buffer's content."
+
+  (let ((tq `(nil ,process ,process-eoc ,prompt-regexp)))
+    (set-process-filter process
+                        (lambda (_p s)
+                          (iclj-tq-proc-filter tq s)))
+    tq))
+
+(defun iclj-tq-make (host port eoc &optional prompt-regexp)
   "Open transaction queue using the HOST/PORT to create the process.
 
-PROCESS-EOC, the process end of command indicator (arbitrary).
+EOC is the end of command indicator.
 
 When non-nil PROMPT-REGEXP will be used to filter the output chunk,
 removing it from the response.
 
-This function returns an instance of transmission queue, that as to be cached
-by the caller."
+A little reminder, this function returns an instance of transmission queue
+that has to be cached by the caller."
   (iclj-tq--make
    ;; return created process
    (open-network-stream iclj-tq-stream-name
@@ -266,7 +271,7 @@ by the caller."
                         :type 'network
                         :nogreeting t
                         :nowait nil)
-   process-eoc
+   eoc
    prompt-regexp))
 
 (provide 'iclj-tq)
