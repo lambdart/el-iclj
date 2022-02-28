@@ -10,7 +10,7 @@
 ;;
 ;;; MIT License
 ;;
-;; Copyright (c) 2020 lambdart
+;; Copyright (c) 2020 2021 2022 lambdart
 ;;
 ;; Permission is hereby granted, free of charge, to any person obtaining a copy
 ;; of this software and associated documentation files (the "Software"), to deal
@@ -43,25 +43,24 @@
 (defvar iclj-util-eoc "\n--ICLJ-EOC-INDICATOR--\n"
   "Default end of command indicator.")
 
-(defun iclj-util-log (msg &optional echop)
-  "Show log MSG to the user and return nil.
-When ECHOP is non-nil show the logs in the echo area."
-  (progn
-    ;; show log message in the *Message* buffer
-    (message "%s" (concat "[ICLJ-TQ]: " msg))
-    ;; clean echo area
-    (or echop (message nil))
-    ;; always return nil
-    nil))
+(defmacro iclj-util-log (string &rest body)
+  "Message STRING and execute BODY forms.
+Return the value of last evaluated form."
+  (declare (indent 2))
+  `(progn
+     (message "%s" (concat "[ICLJ]: " ,string))
+     ;; evaluated body forms
+     ,@body))
 
 (defmacro iclj-util-with-log (string force &rest body)
-  "If last BODY form execution return non-nil or FORCE: show message STRING."
+  "Message STRING if last evaluated BODY form is non-nill.
+If FORCE is non-nill always force the message STRING."
   (declare (indent 2))
   `(let ((temp (progn ,@body)))
-     (prog1 temp
-       (and (or ,force temp)
-            (message "%s" (concat "[ICLJ]: " ,string))
-            (message nil)))))
+     (and (or ,force temp)
+          (message "%s" (concat "[ICLJ]: " ,string))
+          (message nil))
+     temp))
 
 (defun iclj-util-read-port (&optional default-port)
   "Read port, when DEFAULT-PORT is non-nil suggest it."
@@ -102,12 +101,12 @@ When ECHOP is non-nil show the logs in the echo area."
   "Return THING at point.
 See the documentation of `thing-at-point' to understand what
 thing means."
-  (let* ((thing (or thing 'symbol))
-         (bounds (bounds-of-thing-at-point thing)))
-    (if (not bounds) ""
-      (buffer-substring-no-properties (car bounds)
-                                      (cdr bounds)))))
+  (let ((bounds (bounds-of-thing-at-point (or thing 'symbol))))
+    (buffer-substring-no-properties
+     (or (car-safe bounds) (point))
+     (or (cdr-safe bounds) (point)))))
 
+;; TODO: refactor!
 (defun iclj-util--last-line (buffer regexp)
   "Return the BUFFER last line determined by REGEXP pattern."
   (with-current-buffer buffer
@@ -135,9 +134,10 @@ DEFAULT, value to be returned if the last-line isn't found."
       (iclj-util--last-line buffer regexp)
     (or default "nil")))
 
+;; TODO: refactor!
 (defun iclj-util-buffer-content (buffer &optional regexp)
   "Return BUFFER content.
-If REGEXP is non-nil remove/filter it from the content."
+If REGEXP is non-nil remove its matches from the content."
   (save-excursion
     (when (buffer-live-p buffer)
       (with-current-buffer buffer
@@ -196,15 +196,14 @@ If REGEXP is non-nil remove/filter it from the content."
 (defun iclj-util-buffer-string (buffer-or-name)
   "Return BUFFER-OR-NAME content."
   (with-current-buffer (iclj-util-get-buffer-create buffer-or-name)
-    (buffer-substring-no-properties (point-min) (point-max))))
+    (buffer-substring-no-properties (point-min)
+                                    (point-max))))
 
 (defun iclj-util-erase-buffer (buffer-or-name)
   "Delete the entire contents of the buffer specify by BUFFER-OR-NAME."
   (with-current-buffer (iclj-util-get-buffer-create buffer-or-name)
-    ;; remove read only protection
-    (setq buffer-read-only nil)
-    ;; clean buffer
-    (erase-buffer)))
+    (let ((buffer-read-only nil))
+      (erase-buffer))))
 
 (defun iclj-util-save-buffer (filename)
   "Check whether to save buffer visiting file FILENAME.
