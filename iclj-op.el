@@ -270,7 +270,6 @@ considered a Clojure source file by `iclj-load-file'.")
 
 (defun iclj-op-apropos (input)
   "Invoke Clojure (apropos INPUT) operation."
-  ;; map string function parameter
   (interactive (iclj-op-minibuffer-read 'symbol "Apropos"))
   ;; send apropos operation
   (iclj-op-tq-send 'apropos nil nil input))
@@ -278,37 +277,33 @@ considered a Clojure source file by `iclj-load-file'.")
 (defun iclj-op-all-ns ()
   "Pretty print (all-ns)."
   (interactive)
-  ;; send ns-vars operation
   (iclj-op-tq-send 'all-ns nil nil ""))
+
+(defun iclj-op--ns-list ()
+  "Set name space list."
+  (iclj-tq-wait-proc-output iclj-op-tq
+    (iclj-op-tq-send 'ns-list nil t "")))
 
 (defun iclj-op-ns-vars ()
   "List Namespace symbols."
-  ;; map string function parameter
   (interactive)
-  ;; first get namespaces list
-  (iclj-op-tq-send 'ns-list nil t "")
-  ;; send ns-vars operation
+  (iclj-op--ns-list)
   (iclj-op-tq-send 'ns-vars nil nil (iclj-ns-read-namespace)))
 
 (defun iclj-op-set-ns ()
   "Invoke Clojure (in-ns INPUT) operation."
-  ;; map string function parameter
   (interactive)
-  ;; first get namespaces list
-  (iclj-op-tq-send 'ns-list nil t "")
-  ;; send set-ns operation
+  (iclj-op--ns-list)
   (iclj-op-tq-send 'set-ns nil t (iclj-ns-read-namespace)))
 
 (defun iclj-op-source (input)
   "Invoke Clojure (source INPUT) operation."
-  ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Symbol"))
   ;; send source operation
   (iclj-op-tq-send 'source nil nil input))
 
 (defun iclj-op-meta (symbol)
   "Invoke Clojure (meta #'SYMBOL) operation."
-  ;; map string function parameter
   (interactive (iclj-op-minibuffer-read nil "Symbol"))
   ;; send meta operation
   (iclj-op-tq-send 'meta nil nil symbol))
