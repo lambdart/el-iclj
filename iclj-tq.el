@@ -152,14 +152,12 @@ to the TQ head."
     (sleep-for 0.01)))
 
 (defmacro iclj-tq-wait-proc-output (tq &rest body)
-  "Evaluate BODY forms after TQ process output confirmation."
+  "Evaluate BODY forms and force waiting for TQ process output confirmation."
   (declare (indent 1)
            (debug t))
   `(progn
-     (mapc (lambda (fn) (funcal fn ,tq))
-           '(iclj-tq-proc-send-input
-             iclj-wait--proc-loop))
-     ,@body))
+     ,@body
+     (iclj-tq-wait--proc-loop ,tq)))
 
 (defun iclj-tq--proc-send-input (proc string)
   "Send STRING to PROC stream."
@@ -173,10 +171,10 @@ to the TQ head."
 
 (defun iclj-tq-proc-send-input (tq)
   "Send TQ input using the correct process-send function."
-  (and (iclj-tq--proc-send-input (iclj-tq-proc tq)
-                                 (iclj-tq-queue-head-input tq))
-       ;; when waitp is non-nil don't wait for the response,
-       ;; call the handler function ASAP
+  (and (iclj-tq--proc-send-input
+        (iclj-tq-proc tq)
+        (iclj-tq-queue-head-input tq))
+       ;; call the handler function ASAP if wait is non-nil
        (not (iclj-tq-queue-head-waitp tq))
        (iclj-tq-call-handler tq)))
 
@@ -198,7 +196,8 @@ to the TQ head."
                         waitp
                         handler
                         orig-buffer
-                        &optional delay-question)
+                        &optional
+                        delay)
   "Add a transaction to transaction queue TQ.
 This sends the INPUT string to the process that TQ communicates with.
 
@@ -208,7 +207,7 @@ wait for the response end of command indicator.
 The HANDLER is called passing two arguments: the response and
 the ORIG-BUFFER.
 
-If DELAY-QUESTION is non-nil, delay sending this question until
+If DELAY is non-nil, delay sending this question until
 the process has finished replying to any previous questions.
 This produces more reliable results with some processes."
   ;; add queue to the transmission queue
@@ -220,7 +219,7 @@ This produces more reliable results with some processes."
                      (iclj-util-get-buffer-create
                       (generate-new-buffer-name "*iclj-proc-output*")))
   ;; send queue to process
-  (and (or (not delay-question)
+  (and (or (not delay)
            (not (iclj-tq-queue tq))))
   (iclj-tq-proc-send-input tq))
 
