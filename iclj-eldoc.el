@@ -85,23 +85,18 @@ Return the number of nested sexp the point was over or after."
           "" ;; return empty string
         (or (thing-at-point 'symbol) "")))))
 
-;; (defun iclj-eldoc--clean (output-buffer)
-;;   "Clean internal variables and operation OUTPUT-BUFFER."
-;;   (kill-buffer output-buffer))
-
+;; TODO: research!
+;; (let ((str (replace-regexp-in-string "[\t\n\r]+" "" docstring)))
+;;     (replace-regexp-in-string "\s+" " " str)))
 (defun iclj-eldoc-docstring (string)
   "Return format documentation STRING."
   string)
-
-;; (let ((str (replace-regexp-in-string "[\t\n\r]+" "" docstring)))
-;;     (replace-regexp-in-string "\s+" " " str)))
 
 (defun iclj-eldoc-display-docstring (meta-data)
   "Display eldoc documentation string.
 Parse the documentation string and its META-DATA,
 using the CALLBACK function."
-  (when-let* ((meta meta-data)
-              (fnsym (car meta-data))
+  (when-let* ((fnsym (car-safe meta-data))
               (args (cadr meta-data))
               (docstring (concat args
                                  " "
