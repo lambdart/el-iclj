@@ -106,26 +106,21 @@ thing means."
      (or (car-safe bounds) (point))
      (or (cdr-safe bounds) (point)))))
 
-;; TODO: refactor!
 (defun iclj-util--last-line (buffer regexp)
   "Return the BUFFER last line determined by REGEXP pattern."
   (with-current-buffer buffer
     (save-excursion
       (widen)
-      ;; go to the end of the buffer
-      (goto-char (point-max))
-      ;; go back one line
-      (forward-line -1)
-      ;; while last line not found, keep going backwards
-      (while (and (> (point) (point-min))
-                  (not (looking-at-p regexp)))
-        (forward-line -1))
-      ;; last line
-      (forward-line -1)
-      ;; return the string that represents the last line
-      (buffer-substring-no-properties (point)
-                                      (progn
-                                        (end-of-line) (point))))))
+      (buffer-substring-no-properties
+       (progn
+         (goto-char (point-max))
+         (forward-line -1)
+         (while (and (> (point) (point-min))
+                     (not (looking-at-p regexp)))
+           (forward-line -1))
+         (forward-line -1)
+         (point))
+       (progn (end-of-line) (point))))))
 
 (defun iclj-util-last-line (buffer regexp &optional default)
   "Return the BUFFER last line determined by REGEXP pattern.
@@ -134,25 +129,20 @@ DEFAULT, value to be returned if the last-line isn't found."
       (iclj-util--last-line buffer regexp)
     (or default "nil")))
 
-;; TODO: refactor!
 (defun iclj-util-buffer-content (buffer &optional regexp)
   "Return BUFFER content.
 If REGEXP is non-nil remove its matches from the content."
-  (save-excursion
-    (when (buffer-live-p buffer)
+  (when (buffer-live-p buffer)
+    (save-excursion
       (with-current-buffer buffer
         (widen)
-        ;; go to the end of the buffer
         (goto-char (point-max))
-        ;; remove end of command if necessary
-        (if regexp
-            (if (search-backward-regexp regexp nil t)
-                (buffer-substring-no-properties (point-min)
-                                                (point))
-              "")
-          ;; else return everything
-          (buffer-substring-no-properties (point-min)
-                                          (point-max)))))))
+        (apply 'buffer-substring-no-properties
+               (if regexp
+                   (if (search-backward-regexp regexp nil t)
+                       `(,(point-min) ,(point))
+                     `(,(point) ,(point)))
+                 `(,(point-min) ,(point-max))))))))
 
 (defvar iclj-util-local-keymap
   (let ((keymap (make-sparse-keymap)))
@@ -164,6 +154,7 @@ If REGEXP is non-nil remove its matches from the content."
     keymap)
   "Auxiliary keymap to provide quick-access to some useful commands.")
 
+;; TODO: refactor
 (defun iclj-util-get-buffer-create (buffer-or-name)
   "Get or create redirect buffer using the specify BUFFER-OR-NAME."
   (let ((buffer (get-buffer buffer-or-name)))
