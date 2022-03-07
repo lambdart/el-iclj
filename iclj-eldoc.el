@@ -37,7 +37,9 @@
 (require 'subr-x)
 (require 'iclj-op)
 (require 'iclj-tq)
-(require 'iclj-util)
+
+(eval-when-compile
+  (require 'iclj-util))
 
 (defvar iclj-eldoc-thing ""
   "Cache eldoc thing at point.")
@@ -128,8 +130,7 @@ about the context around point."
 (defun iclj-eldoc-handler (output-buffer _)
   "Handler Eldoc OUTPUT-BUFFER to print/display the documentation."
   (iclj-eldoc-display-docstring
-   (let ((content (iclj-util-buffer-content output-buffer iclj-util-eoc)))
-     (and t (kill-buffer output-buffer))
+   (iclj-util-with-buffer-content output-buffer t
      (setq iclj-eldoc-meta-data
            (let ((meta-data (read (or content "()"))))
              (and (consp meta-data) meta-data))))))
