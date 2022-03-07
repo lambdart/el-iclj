@@ -106,6 +106,14 @@ thing means."
      (or (car-safe bounds) (point))
      (or (cdr-safe bounds) (point)))))
 
+(defun iclj-util-sexp-at-point ()
+  "Return symbolic expression at point."
+  (buffer-substring-no-properties
+   (save-excursion
+     (backward-sexp)
+     (point))
+   (point)))
+
 (defun iclj-util--last-line (buffer regexp)
   "Return the BUFFER last line determined by REGEXP pattern."
   (with-current-buffer buffer
@@ -144,6 +152,16 @@ If REGEXP is non-nil remove its matches from the content."
                      `(,(point) ,(point)))
                  `(,(point-min) ,(point-max))))))))
 
+(defmacro iclj-util-with-buffer-content (buffer &optional cleanp &rest body)
+  "Bind BUFFER content and evaluated the BODY forms.
+If CLEANP is non-nil kill the BUFFER before the BODY forms are
+evaluated."
+  (declare (indent 2)
+           (debug t))
+  `(let ((content (iclj-util-buffer-content ,buffer)))
+     (and ,cleanp (kill-buffer ,buffer))
+     ,@body))
+
 (defvar iclj-util-local-keymap
   (let ((keymap (make-sparse-keymap)))
     ;; quick commands
@@ -154,25 +172,23 @@ If REGEXP is non-nil remove its matches from the content."
     keymap)
   "Auxiliary keymap to provide quick-access to some useful commands.")
 
-;; TODO: refactor
 (defun iclj-util-get-buffer-create (buffer-or-name)
   "Get or create redirect buffer using the specify BUFFER-OR-NAME."
-  (let ((buffer (get-buffer buffer-or-name)))
-    (if (buffer-live-p buffer)
-        buffer
-      (let ((buffer (get-buffer-create buffer-or-name)))
-        (with-current-buffer buffer
-          ;; make the buffer read only
-          (setq-local buffer-read-only t)
-          ;; verifies if clojure-mode is available
-          (and (require 'clojure-mode nil t)
-               (fboundp 'clojure-mode)
-               (clojure-mode))
-          ;; set our local map
-          (use-local-map
-           (make-composed-keymap iclj-util-local-keymap (current-local-map))))
-        ;; return the buffer
-        buffer))))
+  (if (and (bufferp buffer-or-name)
+           (buffer-live-p buffer-or-name))
+      buffer-or-name
+    (with-current-buffer (get-buffer-create buffer-or-name)
+      ;; make the buffer read only
+      (setq-local buffer-read-only t)
+      ;; verifies if clojure-mode is available
+      (and (require 'clojure-mode nil t)
+           (fboundp 'clojure-mode)
+           (clojure-mode))
+      ;; set our local map
+      (use-local-map
+       (make-composed-keymap iclj-util-local-keymap (current-local-map)))
+      ;; return buffer
+      (current-buffer))))
 
 (defun iclj-util-insert-chunk (buffer chunk)
   "Insert CHUNK string in target BUFFER."
