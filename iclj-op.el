@@ -317,22 +317,18 @@ INPUT, clojure symbol string that'll be extract the necessary metadata."
 (defun iclj-op-macroexpand ()
   "Invoke Clojure (macroexpand form) operation."
   (interactive)
-  (let ((form (buffer-substring-no-properties
-               (save-excursion
-                 (backward-sexp)
-                 (point))
-               (point))))
-    (iclj-op-tq-send 'macroexpand nil nil form)))
+  (iclj-op-tq-send 'macroexpand
+                   nil
+                   nil
+                   (iclj-util-sexp-at-point)))
 
 (defun iclj-op-macroexpand-1 ()
   "Invoke Clojure (macroexpand-1 form) operation."
   (interactive)
-  (let ((form (buffer-substring-no-properties
-               (save-excursion
-                 (backward-sexp)
-                 (point))
-               (point))))
-    (iclj-op-tq-send 'macroexpand-1 nil nil form)))
+  (iclj-op-tq-send 'macroexpand-1
+                   nil
+                   nil
+                   (iclj-util-sexp-at-point)))
 
 (provide 'iclj-op)
 
