@@ -64,29 +64,24 @@ If FORCE is non-nill always force the message STRING."
 
 (defun iclj-util-read-port (&optional default-port)
   "Read port, when DEFAULT-PORT is non-nil suggest it."
-  (let* ((fmt (if default-port "Port[%s]: " "Port: %s"))
-         (port (read-string (format fmt (or default-port ""))
-                            nil
-                            nil
-                            default-port)))
-    ;; return the choose port or the default one
-    (if (string= port "")
-        default-port
-      port)))
+  (read-string (format (if default-port
+                           "Port[%s]: "
+                         "Port: %s")
+                       (or default-port ""))
+               nil
+               nil
+               default-port))
 
 (defun iclj-util-read-host ()
   "Read host and port."
-  (let* ((host-history (or (car-safe iclj-util-host-history) ""))
-         (host-prompt (format
-                       (if (string= host-history "")
-                           "Host: "
-                         "Host[%s]: ")
-                       host-history)))
-    ;; read the values using the `minibuffer'
-    (read-string host-prompt
+  (let ((default-host (car-safe iclj-util-host-history)))
+    (read-string (format (if default-host
+                             "Host[%s]: "
+                           "Host: %s")
+                         (or default-host ""))
                  nil
-                 host-history
-                 iclj-util-host-history)))
+                 'iclj-util-host-history
+                 default-host)))
 
 (defun iclj-util-bounds-of-thing-at-point ()
   "Return expression bounds at point."
@@ -137,6 +132,19 @@ DEFAULT, value to be returned if the last-line isn't found."
       (iclj-util--last-line buffer regexp)
     (or default "nil")))
 
+(defun iclj-util-delete-eoc (buffer regexp)
+  "Delete output BUFFER using REGEXP backward search."
+  (when (buffer-live-p buffer)
+    (save-excursion
+      (with-current-buffer buffer
+        (widen)
+        (goto-char (point-max))
+        (let ((inhibit-read-only t))
+          (apply 'delete-region
+                 (if (search-backward-regexp regexp nil t)
+                     `(,(point) ,(point-max))
+                   `(,(point) ,(point)))))))))
+
 (defun iclj-util-buffer-content (buffer &optional regexp)
   "Return BUFFER content.
 If REGEXP is non-nil remove its matches from the content."
@@ -158,7 +166,7 @@ If CLEANP is non-nil kill the BUFFER before the BODY forms are
 evaluated."
   (declare (indent 2)
            (debug t))
-  `(let ((content (iclj-util-buffer-content ,buffer)))
+  `(let ((content (iclj-util-buffer-content ,buffer iclj-util-eoc)))
      (and ,cleanp (kill-buffer ,buffer))
      ,@body))
 
