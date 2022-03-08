@@ -183,10 +183,16 @@ to the TQ head."
   (when (iclj-tq-queue-head-waitp tq)
     (kill-buffer (iclj-tq-queue-head-temp-buffer tq))))
 
+(defun iclj-tq-queue-head-clean-temp-buffer (tq)
+  "Kill temporary output buffer if TQ queue head waitp is non-nil."
+  (iclj-util-delete-eoc
+   (or (iclj-tq-queue-head-temp-buffer tq) nil) iclj-util-eoc))
+
 (defun iclj-tq-queue-pop (tq)
   "Pop TQ queue element."
   (mapc (lambda (fn) (funcall fn tq))
         `(iclj-tq-queue-head-kill-temp-buffer
+          iclj-tq-queue-head-clean-temp-buffer
           (lambda (tq) (setcar tq (cdr (car tq))))
           (lambda (tq) (or (iclj-tq-queue-empty-p tq)
                            (iclj-tq-proc-send-input tq))))))
