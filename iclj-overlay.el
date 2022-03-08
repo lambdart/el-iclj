@@ -35,7 +35,6 @@
 ;;; Code:
 
 (require 'iclj-util)
-;;(require 'iclj-comint)
 
 (defgroup iclj-overlay nil
   "Iclj overlay features."
@@ -45,14 +44,17 @@
 (defvar-local iclj-overlay-enabled nil
   "Indicates with overlay is already present in the current buffer.")
 
-(defvar-local iclj-overlay (make-overlay (point-min) (point-min) nil t t)
+(defvar-local iclj-overlay (make-overlay (point-min)
+                                         (point-min)
+                                         nil
+                                         t
+                                         t)
   "Overlay used to display the process output text.")
 
-(defun iclj-overlay-display (current-buffer text)
-  "Display overlay with TEXT in the CURRENT-BUFFER."
-  (when (buffer-live-p current-buffer)
-    ;; show last-line text overlay
-    (with-current-buffer current-buffer
+(defun iclj-overlay-display (buffer text)
+  "Display overlay with TEXT in the BUFFER."
+  (when (and iclj-overlay-enabled (buffer-live-p buffer))
+    (with-current-buffer buffer
       ;; move overlay to the right point
       (move-overlay iclj-overlay (point) (point) (current-buffer))
       ;; the current C cursor code doesn't know to use the overlay's
@@ -69,18 +71,16 @@
 (defun iclj-overlay-enable ()
   "Enable overlay."
   (interactive)
-  ;; enabled indicator
-  (setq iclj-overlay-enabled t)
-  ;; add local hook to clean the overlay
-  (add-hook 'pre-command-hook #'iclj-overlay-delete nil t))
+  (setq iclj-overlay-enabled
+        (prog1 t
+          (add-hook 'pre-command-hook #'iclj-overlay-delete nil t))))
 
 (defun iclj-overlay-disable ()
   "Disable overlay."
   (interactive)
-  ;; disabled indicator
-  (setq iclj-overlay-enabled nil)
-  ;; remove local hook
-  (remove-hook 'pre-command-hook #'iclj-overlay-delete t))
+  (setq iclj-overlay-enabled
+        (prog1 nil
+          (remove-hook 'pre-command-hook #'iclj-overlay-delete t))))
 
 (provide 'iclj-overlay)
 
