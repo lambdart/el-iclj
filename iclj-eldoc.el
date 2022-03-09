@@ -87,12 +87,13 @@ Return the number of nested sexp the point was over or after."
           "" ;; return empty string
         (or (thing-at-point 'symbol) "")))))
 
-;; TODO: research!
-;; (let ((str (replace-regexp-in-string "[\t\n\r]+" "" docstring)))
-;;     (replace-regexp-in-string "\s+" " " str)))
 (defun iclj-eldoc-docstring (string)
   "Return format documentation STRING."
-  string)
+  (replace-regexp-in-string "\s+"
+                            " "
+                            (replace-regexp-in-string "[\t\n\r]+"
+                                                      ""
+                                                      string)))
 
 (defun iclj-eldoc-display-docstring (meta-data)
   "Display eldoc documentation string.
