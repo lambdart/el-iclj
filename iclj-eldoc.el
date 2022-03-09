@@ -35,7 +35,7 @@
 ;;; Code:
 
 (require 'subr-x)
-(require 'iclj-op)
+(require 'iclj-cmd)
 (require 'iclj-tq)
 
 (eval-when-compile
@@ -109,20 +109,30 @@ using the CALLBACK function."
              :thing fnsym
              :face font-lock-function-name-face)))
 
+
+(defun iclj-eldoc-cmd-send (input)
+  "Invoke \\{iclj-eldoc} operation.
+INPUT, clojure symbol string that'll be extract the
+necessary metadata."
+  (and (stringp input)
+       (not (string-empty-p input))
+       (iclj-cmd-send 'eldoc nil t input)))
+
 (defun iclj-eldoc-function (callback &rest _ignored)
   "Clojure documentation function.
 Each hook function is called with at least one argument CALLBACK,
 a function, and decides whether to display a doc short string
 about the context around point."
-  (setq iclj-eldoc-callback (if (functionp callback)
-                                callback
-                              (lambda (&rest _) nil))
+  (setq iclj-eldoc-callback (or (and (functionp callback)
+                                     callback)
+                                (lambda (&rest _) nil))
         iclj-eldoc-thing
-        (iclj-tq-with-live-process iclj-op-tq
+        (iclj-tq-with-live-process iclj-cmd-tq
           (let ((thing (iclj-eldoc-fnsym)))
             (if (string= thing iclj-eldoc-thing)
                 (iclj-eldoc-display-docstring iclj-eldoc-meta-data)
-              (iclj-op-eldoc thing))
+              ;; send command send eldoc
+              (iclj-eldoc-cmd-send thing))
             ;; always cache thing will be used in next interaction
             thing)))
   ;; the hook function should return a non-nil, non-string
