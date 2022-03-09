@@ -60,12 +60,13 @@
 
 (defun iclj-apropos-buffer ()
   "Return apropos buffer."
-  (if (buffer-live-p iclj-apropos-buffer)
-      iclj-apropos-buffer
-    (let ((buffer (iclj-util-get-buffer-create iclj-apropos-buffer-name)))
-      (with-current-buffer buffer
-        (setq buffer-read-only t))
-      (setq iclj-apropos-buffer buffer))))
+  (setq iclj-apropos-buffer
+        (or (and (buffer-live-p iclj-apropos-buffer)
+                 iclj-apropos-buffer)
+            (with-current-buffer (iclj-util-get-buffer-create
+                                  iclj-apropos-buffer-name)
+              (setq-local buffer-read-only t)
+              (current-buffer)))))
 
 (defun iclj-apropos-insert-button (symbol)
   "Insert button with SYMBOL property."
@@ -74,28 +75,21 @@
 
 (defun iclj-apropos-collection (output)
   "Parse OUTPUT to a collection of string elements."
-  (let ((collection (split-string (substring-no-properties output 1 -2) " ")))
-    ;; just return the collection
-    collection))
+  (split-string (substring-no-properties output 1 -2) " " t))
 
-(defun iclj-apropos-handler (output-buffer _source-buffer)
+(defun iclj-apropos-handler (output-buffer _)
   "Apropos OUTPUT-BUFFER operation handler."
-  (let ((content (iclj-util-buffer-content output-buffer iclj-util-eoc)))
+  (iclj-util-with-buffer-content output-buffer t
     (unless (string-empty-p content)
       (save-excursion
         (display-buffer
-         (let ((buffer (iclj-apropos-buffer))
-               (collection (iclj-apropos-collection content))
-               (inhibit-read-only t))
-           (with-current-buffer buffer
-             ;; clean buffer (just in case)
+         (let ((inhibit-read-only t))
+           (with-current-buffer (iclj-apropos-buffer)
              (erase-buffer)
-             ;; insert buttons
-             (dolist (symbol collection)
-               (iclj-apropos-insert-button symbol))
-             ;; go to beginning of the buffer
+             (mapc (lambda (symbol)
+                     (iclj-apropos-insert-button symbol))
+                   (iclj-apropos-collection content))
              (goto-char (point-min))
-             ;; return the buffer
              (current-buffer))))))))
 
 (provide 'iclj-apropos)
