@@ -40,6 +40,7 @@
 (defvar iclj-util-port "5555"
   "Default port number.")
 
+;; TODO: should come from a configuration or function
 (defvar iclj-util-eoc "\n--ICLJ-EOC-INDICATOR--\n"
   "Default end of command indicator.")
 
@@ -83,6 +84,32 @@ If FORCE is non-nill always force the message STRING."
                  'iclj-util-host-history
                  default-host)))
 
+(defun iclj-util-minibuffer-read (&optional thing prompt)
+  "Read string using minibuffer.
+THING, non-nil means grab thing at point (default).
+PROMPT, non-nil means minibuffer prompt."
+  (let ((def (iclj-util-thing-at-point thing)))
+    (list (read-string
+           (apply 'format `(,(if (not thing)
+                                 "%s: "
+                               "%s[%s]: ")
+                            ,(or prompt "Input")
+                            ,def))
+           nil
+           nil
+           def))))
+
+(defvar iclj-util-prev-l/c-dir/file '(nil)
+  "Caches the last (directory . file) pair.")
+
+(defun iclj-util-read-source-file ()
+  "Read file name and cache it."
+  (list
+   (read-file-name "File: "
+                   (car-safe iclj-util-prev-l/c-dir/file)
+                   (cdr-safe iclj-util-prev-l/c-dir/file)
+                   t)))
+
 (defun iclj-util-bounds-of-thing-at-point ()
   "Return expression bounds at point."
   (if (use-region-p)
@@ -123,7 +150,9 @@ thing means."
            (forward-line -1))
          (forward-line -1)
          (point))
-       (progn (end-of-line) (point))))))
+       (progn
+         (end-of-line)
+         (point))))))
 
 (defun iclj-util-last-line (buffer regexp &optional default)
   "Return the BUFFER last line determined by REGEXP pattern.
