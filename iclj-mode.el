@@ -34,9 +34,7 @@
 ;;
 ;;; Code:
 
-(require 'clojure-mode nil t)
-
-(require 'iclj-op)
+(require 'iclj-cmd)
 (require 'iclj-eval)
 (require 'iclj-eldoc)
 (require 'iclj-overlay)
@@ -45,21 +43,24 @@
 
 (defvar iclj-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-M-x")   #'iclj-op-eval-defn) ; Gnu convention
-    (define-key map (kbd "C-c C-e") #'iclj-op-eval-last-sexp)
-    (define-key map (kbd "C-x C-e") #'iclj-op-eval-last-sexp)  ; Gnu convention
-    (define-key map (kbd "C-c C-r") #'iclj-op-eval-region)
-    (define-key map (kbd "C-c C-c") #'iclj-op-eval-buffer)
-    (define-key map (kbd "C-c C-d") #'iclj-op-doc)
-    (define-key map (kbd "C-c C-f") #'iclj-op-find-doc)
-    (define-key map (kbd "C-c C-t") #'iclj-op-run-tests)
-    (define-key map (kbd "C-c C-a") #'iclj-op-apropos)
-    (define-key map (kbd "C-c C-l") #'iclj-op-load-file)
-    (define-key map (kbd "C-c C-b") #'iclj-op-eval-target-buffer)
-    (define-key map (kbd "C-c C-p") #'iclj-comint-remote-run)
-    (define-key map (kbd "C-c C-q") #'iclj-comint-quit)
-    ;; set parent keymap
-    (set-keymap-parent map clojure-mode-map)
+    (mapc (lambda (seq)
+            (apply 'define-key
+                   map
+                   (kbd (car seq))
+                   (cdr seq)))
+          `(("C-M-x"   iclj-eval-defn) ; Gnu convention
+            ("C-c C-e" iclj-eval-last-sexp)
+            ("C-x C-e" iclj-eval-last-sexp)  ; Gnu convention
+            ("C-c C-r" iclj-eval-region)
+            ("C-c C-c" iclj-eval-buffer)
+            ("C-c C-d" iclj-doc)
+            ("C-c C-f" iclj-find-doc)
+            ("C-c C-t" iclj-run-tests)
+            ("C-c C-a" iclj-apropos)
+            ("C-c C-l" iclj-load-file)
+            ("C-c C-b" iclj-eval-target-buffer)
+            ("C-c C-p" iclj-comint-remote-run)
+            ("C-c C-q" iclj-comint-quit)))
     map)
   "Clojure REPL commands (or operations) keymap.")
 
@@ -68,23 +69,23 @@
   (easy-menu-define iclj-mode-menu iclj-mode-map
     "Iclj Minor Mode Menu"
     '("ICLJ"
-      ["Eval region" iclj-op-eval-region t]
-      ["Eval buffer" iclj-op-eval-buffer t]
-      ["Eval function" iclj-op-eval-defn t]
-      ["Eval last sexp" iclj-op-eval-last-sexp t]
+      ["Eval region" iclj-eval-region t]
+      ["Eval buffer" iclj-eval-buffer t]
+      ["Eval function" iclj-eval-defn t]
+      ["Eval last sexp" iclj-eval-last-sexp t]
       "--"
-      ["Load file" iclj-op-load-file t]
-      ["Set NS" iclj-op-set-ns t]
-      ["NS vars" iclj-op-ns-vars t]
+      ["Load file" iclj-load-file t]
+      ["Set NS" iclj-set-ns t]
+      ["NS vars" iclj-ns-vars t]
       "--"
-      ["Doc" iclj-op-doc t]
-      ["Apropos" iclj-op-apropos t]
-      ["Find-Doc" iclj-op-find-doc t]
+      ["Doc" iclj-doc t]
+      ["Apropos" iclj-apropos t]
+      ["Find-Doc" iclj-find-doc t]
       "--"
       ["Quit REPL" iclj-comint-quit])))
 
-(defvar iclj-mode nil
-  "Non-nil means the minor mode is on, off otherwise.")
+;; avoid warning
+(defvar iclj-mode nil)
 
 ;;;###autoload
 (defun iclj-mode-state ()
