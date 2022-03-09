@@ -74,8 +74,7 @@
     (macroexpand    . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand '%s))"))
     (macroexpand-1  . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))"))
     (all-ns         . (:fmt ,iclj-op-all-ns-fmt))
-    (ns-vars        . (:fmt "(clojure.repl/dir %s)"
-                       :waitp t))
+    (ns-vars        . (:fmt "(clojure.repl/dir %s)"))
     (ns-list        . (:fmt ,iclj-ns-list-fmt :fun iclj-ns-list-handler :waitp t))
     (set-ns         . (:fmt "(clojure.core/in-ns '%s)")))
   "Operation associative list: (OP-KEY . (OP-PLIST))
