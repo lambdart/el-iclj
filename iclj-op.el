@@ -86,7 +86,7 @@
 (defun iclj-op--default-handler (output-buffer &optional _)
   "Switch to OUTPUT-BUFFER (the process output buffer)."
   (save-excursion
-    (switch-to-buffer output-buffer)))
+    (display-buffer output-buffer)))
 
 (defun iclj-op--add-eoc (op)
   "Return OP with end of command indicator."
@@ -208,7 +208,7 @@ PROMPT, non-nil means minibuffer prompt."
     (insert-file-contents-literally filename)
     (iclj-op-eval-buffer)))
 
-(defvar iclj-op-prev-l/c-dir/file nil
+(defvar iclj-op-prev-l/c-dir/file '(nil)
   "Caches the last (directory . file) pair.")
 
 (defvar iclj-source-modes '(clojure-mode)
@@ -219,25 +219,25 @@ considered a Clojure source file by `iclj-load-file'.")
 ;; TODO: check the list of open file buffer and evaluate it directly
 (defun iclj-op--eval-file-contents (filename)
   "Copy FILENAME contents and eval the temporary buffer."
-  ;; the user is queried to see if he wants to save the buffer before
-  ;; proceeding with the load or compile
-  (iclj-util-save-buffer filename)
-  ;; cache previous directory/filename
   (setq iclj-op-prev-l/c-dir/file
-        (cons (file-name-directory filename)
-              (file-name-nondirectory filename)))
-  ;; open file copy contents to a temporary buffer and evaluate it
-  (with-temp-buffer
-    (insert-file-contents (expand-file-name filename))
-    ;; call eval buffer operation
-    (iclj-op-eval-buffer)))
+        (prog2
+            ;; the user is queried to see if he wants to save the buffer before
+            ;; proceeding with the load or compile
+            (iclj-util-save-buffer filename)
+            ;; cache previous directory/filename
+            (cons (file-name-directory filename)
+                  (file-name-nondirectory filename))
+          (with-temp-buffer
+            (insert-file-contents (expand-file-name filename))
+            (iclj-op-eval-buffer)))))
 
 (defun iclj-op-load-file (filename)
   "Load the target FILENAME."
-  (interactive (comint-get-source "File"
-                                  iclj-op-prev-l/c-dir/file
-                                  iclj-source-modes t))
-  ;; send `eval-buffer' operation with file contents in a temporary buffer
+  (interactive (list
+                (read-file-name "File: "
+                                (car-safe iclj-op-prev-l/c-dir/file)
+                                (cdr-safe iclj-op-prev-l/c-dir/file)
+                                t)))
   (iclj-op--eval-file-contents filename))
 
 (defun iclj-op-run-tests ()
