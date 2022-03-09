@@ -37,29 +37,14 @@
 (require 'iclj-util)
 (require 'iclj-overlay)
 
-(defgroup iclj-eval nil
-  "Iclj overlay features."
-  :prefix "iclj-eval-"
-  :group 'iclj-eval)
-
-(defcustom iclj-eval-display-overlay-flag t
-  "Non-nil means display eval output overlay."
-  :group 'iclj-overlay
-  :type 'boolean)
-
-;;;###autoload
 (defun iclj-eval-handler (output-buffer source-buffer)
   "Get last line from OUTPUT-BUFFER and display it in the SOURCE-BUFFER.
 Overlay is the front end of choice."
-  (when iclj-eval-display-overlay-flag
-    (unless iclj-overlay-enabled
-      (funcall 'iclj-overlay-enable))
-    (let ((last-line (iclj-util-last-line output-buffer
-                                          iclj-util-eoc
-                                          "nil")))
-      ;; display overlay with last-line in current buffer
-      (iclj-overlay-display source-buffer
-                            (concat " => " last-line)))))
+  (iclj-overlay-display source-buffer
+                        (concat " => "
+                                (iclj-util-last-line output-buffer
+                                                     iclj-util-eoc
+                                                     "nil"))))
 
 (provide 'iclj-eval)
 
