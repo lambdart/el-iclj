@@ -35,8 +35,8 @@
 ;;; Code:
 
 (require 'iclj-util)
-(require 'iclj-op)
 (require 'iclj-apropos)
+(require 'iclj-cmd)
 (require 'iclj-tq)
 
 (defvar iclj-completions '())
@@ -59,12 +59,12 @@
 
 (defun iclj-completion-at-point (&rest _)
   "Clojure completion at point."
-  (iclj-tq-with-live-process iclj-op-tq
+  (iclj-tq-with-live-process iclj-cmd-tq
     (let* ((bounds (iclj-util-bounds-of-thing-at-point))
            (beg (car bounds))
            (end (cdr bounds)))
       ;; send apropos operation
-      (iclj-op-tq-send 'apropos #'iclj-completion-handler t beg end)
+      (iclj-cmd-send 'apropos #'iclj-completion-handler t beg end)
       ;; return completions
       (list beg end iclj-completions))))
 
