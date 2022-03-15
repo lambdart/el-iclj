@@ -161,7 +161,7 @@ DEFAULT, value to be returned if the last-line isn't found."
       (iclj-util--last-line buffer regexp)
     (or default "nil")))
 
-(defun iclj-util-delete-eoc (buffer regexp)
+(defun iclj-util-delete-regexp (buffer regexp)
   "Delete output BUFFER using REGEXP backward search."
   (when (buffer-live-p buffer)
     (save-excursion
@@ -256,11 +256,10 @@ If the file is loaded into a buffer, and the buffer is modified, the user
 is queried to see if he wants to save the buffer before proceeding with
 the load or compile."
   (let ((buffer (get-file-buffer filename)))
-    (when (and buffer
-               (buffer-modified-p buffer)
-               (y-or-n-p (format "Save buffer %s first? " (buffer-name buffer))))
-      (with-current-buffer buffer
-        (save-buffer)))))
+    (and buffer
+         (buffer-modified-p buffer)
+         (y-or-n-p (format "Save buffer %s first? " (buffer-name buffer)))
+         (with-current-buffer buffer (save-buffer)))))
 
 (provide 'iclj-util)
 
