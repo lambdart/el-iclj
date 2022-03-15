@@ -50,6 +50,21 @@
 (defvar iclj-cmd-prompt-regexp "\\( *#_\\|[^=> \n]+\\)=> *"
   "Regexp to recognize both main prompt and subprompt for comint.")
 
+(defvar iclj-cmd-stream-name
+  " *iclj-cmd-stream*"
+  "Default stream name.")
+
+(defun iclj-cmd--network-stream (host port)
+  "Open network-stream using HOST/PORT."
+  (open-network-stream iclj-cmd-stream-name
+                       nil
+                       host
+                       port
+                       :return-list nil
+                       :type 'network
+                       :nogreeting t
+                       :nowait nil))
+
 ;;;###autoload
 (defun iclj-connect (host port)
   "Make TQ Clojure repl server stream using the (HOST PORT) parameters."
@@ -65,8 +80,7 @@
         ;; default: tries open host/port stream and cache it
         (t (condition-case err
                (setq iclj-cmd-tq
-                     (iclj-tq-make host
-                                   port
+                     (iclj-tq-make (iclj-cmd--network-stream host port)
                                    iclj-util-eoc
                                    iclj-cmd-prompt-regexp))
              ;; handle errors
@@ -88,18 +102,18 @@
   (save-excursion
     (display-buffer output-buffer)))
 
-(defun iclj--format-with-eoc (op)
-  "Return OP with end of command indicator."
-  (format "%s (print %S)" op iclj-util-eoc))
+(defun iclj--format-append-eoc (cmd)
+  "Return CMD with end of command indicator."
+  (format "%s (print %S)" cmd iclj-util-eoc))
 
-(defun iclj--parse-input (input op-fmt)
-  "Format INPUT (string or region) with OP-FMT (operation format)."
-  (iclj--format-with-eoc
-   (format op-fmt (let* ((temp (car input))
-                         (str (if (not (stringp temp))
-                                  (apply 'buffer-substring-no-properties input)
-                                temp)))
-                    str))))
+(defun iclj--parse-input (input cmd-fmt)
+  "Format INPUT (string or region) with CMD-FMT (command format)."
+  (iclj--format-append-eoc
+   (format cmd-fmt
+           (let ((temp (car input)))
+             (if (not (stringp temp))
+                 (apply 'buffer-substring-no-properties input)
+               temp)))))
 
 (defun iclj--ensure-connection ()
   "Return cached transmission queue or create the connection."
@@ -113,7 +127,6 @@
 
 (defun iclj-cmd-send (op-key handler waitp &rest input)
   "Send the operation defined by OP-KEY.
-
 HANDLER, function that will be called by the transmission queue with the
 output buffer.
 
@@ -125,10 +138,14 @@ INPUT, the string or the region bounds."
     (let ((op-plist (iclj-op-table-get-plist op-key)))
       (when op-plist
         (iclj-tq-enqueue iclj-cmd-tq
-                         (iclj--parse-input input (plist-get op-plist :fmt))
+                         ;; parsed command plus input
+                         (iclj--parse-input input
+                                            (plist-get op-plist :fmt))
+                         ;; wait predicate
                          (or waitp (plist-get op-plist :waitp))
+                         ;; callback handler
                          (or handler
-                             (plist-get op-plist :fun)
+                             (plist-get op-plist :cb)
                              'iclj--default-handler)
                          ;; source buffer
                          (current-buffer)
@@ -185,34 +202,33 @@ INPUT, the string or the region bounds."
   (with-current-buffer buffer
     (iclj-eval-buffer)))
 
-(defun iclj-eval-file (filename)
-  "Read FILENAME and evaluate it's region contents."
-  (interactive "fFile: ")
-  ;; insert buffer contents and call eval buffer operation
-  (with-temp-buffer
-    (insert-file-contents-literally filename)
-    (iclj-eval-buffer)))
-
-;; TODO: check the list of open file buffer and evaluate it directly
-(defun iclj--eval-file-contents (filename)
+(defun iclj--eval-file-or-buffer (filename)
   "Copy FILENAME contents and eval the temporary buffer."
   (setq iclj-util-prev-l/c-dir/file
-        (prog2
-            ;; the user is queried to see if he wants to save the buffer before
-            ;; proceeding with the load or compile
-            (iclj-util-save-buffer filename)
+        (let ((fname (expand-file-name filename)))
+          ;; the user is queried to see if he wants to save
+          ;; the buffer before proceeding with the load or compile
+          (iclj-util-save-buffer fname)
+          ;; get or create the file buffer
+          (let ((buffer (get-file-buffer fname)))
+            (if buffer
+                (iclj-eval-target-buffer buffer)
+              ;; insert buffer contents and call eval buffer operation
+              (with-temp-buffer
+                (insert-file-contents-literally filename)
+                (iclj-eval-buffer)))
             ;; cache previous directory/filename
-            (cons (file-name-directory filename)
-                  (file-name-nondirectory filename))
-          (with-temp-buffer
-            (insert-file-contents (expand-file-name filename))
-            (iclj-eval-buffer)))))
+            (cons (file-name-directory fname)
+                  (file-name-nondirectory fname))))))
 
-(defun iclj-load-file (filename)
-  "Load the target FILENAME."
+(defun iclj-eval-file (filename)
+  "Evaluate target FILENAME content."
   (interactive (iclj-util-read-source-file))
   ;; tries to eval file contest and cache previous local directory
-  (iclj--eval-file-contents filename))
+  (iclj--eval-file-or-buffer filename))
+
+(defalias 'iclj-load-file 'iclj-eval-file
+  "Load file is more intuitive command name.")
 
 (defun iclj-run-tests ()
   "Invoke Clojure (run-tests) operation."
@@ -226,7 +242,7 @@ INPUT, the string or the region bounds."
   ;; send `eval-buffer' operation with file contents in a temporary buffer
   ;; and wait for it
   (iclj-tq-wait-proc-output iclj-cmd-tq
-    (iclj--eval-file-contents filename))
+    (iclj--eval-file-or-buffer filename))
   ;; run the tests after "load"
   (iclj-cmd-send 'run-tests nil nil ""))
 
