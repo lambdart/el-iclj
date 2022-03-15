@@ -36,10 +36,6 @@
 
 (require 'iclj-util)
 
-(defvar iclj-tq-stream-name
-  " *iclj-repl-server-stream*"
-  "Default stream name.")
-
 (defvar iclj-tq-proc-eoc-found nil
   "End of command status indicator.")
 
@@ -184,9 +180,10 @@ to the TQ head."
     (kill-buffer (iclj-tq-queue-head-temp-buffer tq))))
 
 (defun iclj-tq-queue-head-clean-temp-buffer (tq)
-  "Kill temporary output buffer if TQ queue head waitp is non-nil."
-  (iclj-util-delete-eoc
-   (or (iclj-tq-queue-head-temp-buffer tq) nil) iclj-util-eoc))
+  "Delete end of command indicator from TQ temporary buffer."
+  (apply 'iclj-util-delete-regexp
+         `(,(or (iclj-tq-queue-head-temp-buffer tq) nil)
+           ,(iclj-tq-proc-eoc tq))))
 
 (defun iclj-tq-queue-pop (tq)
   "Pop TQ queue element."
@@ -239,7 +236,7 @@ This function always returns nil."
   (iclj-util-with-log "process deleted" t
     (delete-process (iclj-tq-proc tq))))
 
-(defun iclj-tq--make (process process-eoc &optional prompt-regexp)
+(defun iclj-tq-make (process process-eoc &optional prompt-regexp)
   "Set PROCESS filter and return the transaction queue.
 
 PROCESS should be a sub process capable of sending and receiving
@@ -255,29 +252,6 @@ PROMPT-REGEXP the prompt regex, is used to clean the response buffer's content."
                         (lambda (_p s)
                           (iclj-tq-proc-filter tq s)))
     tq))
-
-(defun iclj-tq-make (host port eoc &optional prompt-regexp)
-  "Open transaction queue using the HOST/PORT to create the process.
-
-EOC is the end of command indicator.
-
-When non-nil PROMPT-REGEXP will be used to filter the output chunk,
-removing it from the response.
-
-A little reminder, this function returns an instance of transmission queue
-that has to be cached by the caller."
-  (iclj-tq--make
-   ;; return created process
-   (open-network-stream iclj-tq-stream-name
-                        nil
-                        host
-                        port
-                        :return-list nil
-                        :type 'network
-                        :nogreeting t
-                        :nowait nil)
-   eoc
-   prompt-regexp))
 
 (provide 'iclj-tq)
 
