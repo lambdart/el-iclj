@@ -60,13 +60,14 @@
 (defvar iclj-op-table
   `((input          . (:fmt "%s"))
     (eval           . (:fmt "%s"))
-    (eval-last-sexp . (:fun iclj-eval-handler :fmt "%s" :waitp t))
+    (eval-last-sexp . (:cb iclj-eval-handler :fmt "%s" :waitp t))
     (doc            . (:fmt "(clojure.repl/doc %s)"))
     (find-doc       . (:fmt "(clojure.repl/find-doc %S)"))
     (run-tests      . (:fmt "(clojure.test/run-tests)"))
-    (eldoc          . (:fun iclj-eldoc-handler :fmt ,iclj-op-eldoc-fmt))
-    (apropos        . (:fun iclj-apropos-handler
+    (eldoc          . (:cb iclj-eldoc-handler :fmt ,iclj-op-eldoc-fmt))
+    (apropos        . (:cb iclj-apropos-handler
                        :fmt "(sort (clojure.repl/apropos %S))"
+                       :buf ""
                        :waitp t))
     (source         . (:fmt "(clojure.repl/source %s)"))
 
@@ -75,7 +76,7 @@
     (macroexpand-1  . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))"))
     (all-ns         . (:fmt ,iclj-op-all-ns-fmt))
     (ns-vars        . (:fmt "(clojure.repl/dir %s)"))
-    (ns-list        . (:fmt ,iclj-ns-list-fmt :fun iclj-ns-list-handler :waitp t))
+    (ns-list        . (:fmt ,iclj-ns-list-fmt :cb iclj-ns-list-handler :waitp t))
     (set-ns         . (:fmt "(clojure.core/in-ns '%s)")))
   "Operation associative list: (OP-KEY . (OP-PLIST))
 OP-KEY, the operation key selector.
@@ -89,9 +90,10 @@ dedicated output buffer.")
 (defun iclj-op-table-get-property (op-key property)
   "Get property list element from the operation table.
 OP-KEY, operation key property list selector.
-PROPERTY, possible values are: :fun, :fmt and :buf."
+PROPERTY, possible values are: :cb, :fmt and :buf."
   (plist-get (iclj-op-table-get-plist op-key) property))
 
 (provide 'iclj-op-table)
 
 ;;; iclj-op-table.el ends here
+
