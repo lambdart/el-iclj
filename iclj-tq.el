@@ -34,6 +34,7 @@
 ;;
 ;;; Code:
 
+;; (require 'gv)
 (require 'iclj-util)
 
 (defvar iclj-tq-proc-eoc-found nil
@@ -79,7 +80,12 @@ Handler: function to call upon receiving a complete response from the process."
 (defun iclj-tq-queue-head-temp-buffer (tq)
   "Fetch TQ temporary buffer.
 Buffer: process output buffer."
-  (cdr (cdddar (iclj-tq-queue tq))))
+  (cadr (cdddar (iclj-tq-queue tq))))
+
+(defun iclj-tq-queue-head-wait-handler (tq)
+  "Fetch TQ temporary buffer.
+Buffer: process output buffer."
+  (cdr (cdr (cdddar (iclj-tq-queue tq)))))
 
 (defun iclj-tq-queue-empty-p (tq)
   "Return non-nil if queue (TQ) is empty."
@@ -98,9 +104,12 @@ Buffer: process output buffer."
 
 (defun iclj-tq-call-handler (tq)
   "Call TQ function handler."
-  (funcall (iclj-tq-queue-head-handler tq)
-           (iclj-tq-queue-head-temp-buffer tq)
-           (iclj-tq-queue-head-orig-buffer tq)))
+  (progn
+    (funcall (iclj-tq-queue-head-handler tq)
+             (iclj-tq-queue-head-temp-buffer tq)
+             (iclj-tq-queue-head-orig-buffer tq))
+    ;; handler ends indicator
+    (setcdr (last (car (iclj-tq-queue tq))) t)))
 
 (defun iclj-tq-proc-filter (tq string)
   "Cache TQ output STRING."
@@ -137,15 +146,18 @@ to the TQ head."
                       `((,input
                          ,waitp
                          ,handler
-                         ,orig-buffer .
-                         ,temp-buffer))))))
+                         ,orig-buffer
+                         ,temp-buffer .
+                         nil))))))
 
 (defun iclj-tq-wait--proc-loop (tq)
   "Wait TQ process output loop."
-  ;; TODO: add timeout
-  (while (and (null iclj-tq-proc-eoc-found)
-              (accept-process-output (iclj-tq-proc tq) 1 0 t))
-    (sleep-for 0.01)))
+  ;; TODO: add timeout here (maybe local-quit)
+  (let ((proc (iclj-tq-proc tq)))
+    (and (process-live-p proc)
+         (while (and (null iclj-tq-proc-eoc-found)
+                     (accept-process-output proc 1 0 t))
+           (sleep-for 0.01)))))
 
 (defmacro iclj-tq-wait-proc-output (tq &rest body)
   "Evaluate BODY forms and force waiting for TQ process output confirmation."
@@ -154,6 +166,20 @@ to the TQ head."
   `(progn
      ,@body
      (iclj-tq-wait--proc-loop ,tq)))
+
+(defmacro iclj-tq-eval-after-handler (tq func &rest body)
+  "Evaluate BODY forms after TQ callback FUNC ends."
+  (declare (indent 2)
+           (debug t))
+  `(when (iclj-tq-proc-live-p ,tq)
+     (mapc  #'funcall
+           '(,func
+             (lambda ()
+               (with-local-quit
+                 ;; TODO: add timeout here
+                 (while (eq (iclj-tq-queue-head-wait-handler ,tq) t)
+                   (sleep-for 0.01))))))
+     ,@body))
 
 (defun iclj-tq--proc-send-input (proc string)
   "Send STRING to PROC stream."
