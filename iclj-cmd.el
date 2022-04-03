@@ -42,6 +42,9 @@
 (require 'comint nil t)
 
 (defvar iclj-cmd-tq nil
+  "Default tq instance.")
+
+(defvar iclj-cmd-tq-cache nil
   "Default tq instance cache.")
 
 (defvar iclj-cmd-subprompt-regexp " *#_=> *"
@@ -86,9 +89,10 @@
              ;; handle errors
              (error (iclj-util-log (concat "error: " (cadr err))))
              ;; handle success
-             (:success (iclj-util-log "success: TQ connected!"))))))
+             (:success (iclj-util-log "success: TQ connected!")))))
+  ;; cache transmission queue
+  (setq iclj-cmd-tq-cache iclj-cmd-tq))
 
-;;;###autoload
 (defun iclj-disconnect ()
   "Disconnect from transmission queue."
   (interactive)
@@ -96,6 +100,13 @@
   (setq iclj-cmd-tq (and iclj-cmd-tq (iclj-tq-proc-delete iclj-cmd-tq)))
   ;; just a hint to the user
   (iclj-util-log "TQ disconnected!" t))
+
+(defun iclj-restart-connection ()
+  "Restart transmission queue."
+  (interactive)
+  (setq iclj-cmd-tq
+        (or iclj-cmd-tq-cache
+            (call-interactively 'iclj-connect))))
 
 (defun iclj--default-handler (output-buffer &optional _)
   "Switch to OUTPUT-BUFFER (the process output buffer)."
@@ -123,7 +134,7 @@
                   (not (iclj-tq-proc-live-p iclj-cmd-tq)))
              nil
            iclj-cmd-tq))
-   (call-interactively 'iclj-cmd-connect)))
+   (call-interactively 'iclj-connect)))
 
 (defun iclj-cmd-send (op-key handler waitp &rest input)
   "Send the operation defined by OP-KEY.
@@ -259,7 +270,7 @@ INPUT, the string or the region bounds."
   (iclj-cmd-send 'find-doc nil nil input))
 
 (defun iclj-apropos (input)
-  "Apropos INPUT."
+  "Send apropos operation with the arbitrary INPUT."
   (interactive (iclj-util-minibuffer-read 'symbol "Apropos"))
   ;; send apropos command
   (iclj-cmd-send 'apropos nil nil input))
@@ -269,22 +280,31 @@ INPUT, the string or the region bounds."
   (interactive)
   (iclj-cmd-send 'all-ns nil nil ""))
 
-(defun iclj--ns-list ()
+(defun iclj-cmd--send-ns-list ()
   "Cache namespace list."
-  (iclj-tq-wait-proc-output iclj-cmd-tq
-    (iclj-cmd-send 'ns-list nil t "")))
+  (iclj-cmd-send 'ns-list nil t ""))
 
 (defun iclj-ns-vars ()
   "List namespace symbols."
   (interactive)
-  (iclj--ns-list)
-  (iclj-cmd-send 'ns-vars nil nil (iclj-ns-read-namespace)))
+  (iclj-tq-eval-after-handler
+      iclj-cmd-tq
+      'iclj-cmd--send-ns-list
+    (iclj-cmd-send 'ns-vars
+                   nil
+                   nil
+                   (iclj-ns-read-namespace))))
 
 (defun iclj-set-ns ()
   "Set current namespace."
   (interactive)
-  (iclj--ns-list)
-  (iclj-cmd-send 'set-ns nil t (iclj-ns-read-namespace)))
+  (iclj-tq-eval-after-handler
+      iclj-cmd-tq
+      'iclj-cmd--send-ns-list
+    (iclj-cmd-send 'set-ns
+                   nil
+                   t
+                   (iclj-ns-read-namespace))))
 
 (defun iclj-source (input)
   "Show source from symbol INPUT."
