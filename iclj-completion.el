@@ -41,6 +41,7 @@
 
 (defvar iclj-completions '())
 (defvar iclj-completion-thing nil)
+(defvar iclj-completion-handler-ends nil)
 
 (defun iclj-completion--append-clean-ns (collection)
   "Append COLLECTION after name space cleanup."
@@ -55,18 +56,28 @@
   (setq iclj-completions
         (iclj-completion--append-clean-ns
          (iclj-apropos-collection
-          (iclj-util-buffer-content output-buffer iclj-util-eoc)))))
+          (iclj-util-buffer-content output-buffer iclj-util-eoc)))
+        ;; handler ends
+        iclj-completion-handler-ends t))
 
-(defun iclj-completion-at-point (&rest _)
-  "Clojure completion at point."
+(defun iclj-completion-send-cmd ()
+  "Send completion command."
+  ;; send apropos operation
   (iclj-tq-with-live-process iclj-cmd-tq
-    (let* ((bounds (iclj-util-bounds-of-thing-at-point))
-           (beg (car bounds))
-           (end (cdr bounds)))
-      ;; send apropos operation
-      (iclj-cmd-send 'apropos #'iclj-completion-handler t beg end)
-      ;; return completions
-      (list beg end iclj-completions))))
+    (apply 'iclj-cmd-send
+           `(apropos
+             iclj-completion-handler
+             t
+             ,@(let ((bounds (iclj-util-bounds-of-thing-at-point)))
+                 (list (car-safe bounds)
+                       (cdr-safe bounds)))))))
+
+(defun iclj-completion-completions (&rest _)
+  "Return list of completions."
+  (iclj-tq-eval-after-handler
+      iclj-cmd-tq
+      'iclj-completion-send-cmd
+    iclj-completions))
 
 (provide 'iclj-completion)
 
