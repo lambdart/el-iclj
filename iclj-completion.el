@@ -56,9 +56,7 @@
   (setq iclj-completions
         (iclj-completion--append-clean-ns
          (iclj-apropos-collection
-          (iclj-util-buffer-content output-buffer iclj-util-eoc)))
-        ;; handler ends
-        iclj-completion-handler-ends t))
+          (iclj-util-buffer-content output-buffer iclj-util-eoc)))))
 
 (defun iclj-completion-send-cmd ()
   "Send completion command."
@@ -72,11 +70,12 @@
                  (list (car-safe bounds)
                        (cdr-safe bounds)))))))
 
+
 (defun iclj-completion-completions (&rest _)
   "Return list of completions."
   (iclj-tq-eval-after-handler
       iclj-cmd-tq
-      'iclj-completion-send-cmd
+      iclj-completion-send-cmd
     iclj-completions))
 
 (provide 'iclj-completion)
