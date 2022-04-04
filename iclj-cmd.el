@@ -289,7 +289,7 @@ INPUT, the string or the region bounds."
   (interactive)
   (iclj-tq-eval-after-handler
       iclj-cmd-tq
-      'iclj-cmd--send-ns-list
+      iclj-cmd--send-ns-list
     (iclj-cmd-send 'ns-vars
                    nil
                    nil
@@ -300,7 +300,7 @@ INPUT, the string or the region bounds."
   (interactive)
   (iclj-tq-eval-after-handler
       iclj-cmd-tq
-      'iclj-cmd--send-ns-list
+      iclj-cmd--send-ns-list
     (iclj-cmd-send 'set-ns
                    nil
                    t
