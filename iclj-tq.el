@@ -109,7 +109,7 @@ Buffer: process output buffer."
              (iclj-tq-queue-head-temp-buffer tq)
              (iclj-tq-queue-head-orig-buffer tq))
     ;; handler ends indicator
-    (setcdr (last (car (iclj-tq-queue tq))) t)))
+    (setcdr (cdr (cdddar (iclj-tq-queue tq))) nil)))
 
 (defun iclj-tq-proc-filter (tq string)
   "Cache TQ output STRING."
@@ -148,7 +148,7 @@ to the TQ head."
                          ,handler
                          ,orig-buffer
                          ,temp-buffer .
-                         nil))))))
+                         t))))))
 
 (defun iclj-tq-wait--proc-loop (tq)
   "Wait TQ process output loop."
@@ -168,17 +168,16 @@ to the TQ head."
      (iclj-tq-wait--proc-loop ,tq)))
 
 (defmacro iclj-tq-eval-after-handler (tq func &rest body)
-  "Evaluate BODY forms after TQ callback FUNC ends."
+  "Evaluate BODY forms after TQ handler that will be called by FUNC ends."
   (declare (indent 2)
            (debug t))
   `(when (iclj-tq-proc-live-p ,tq)
      (mapc  #'funcall
-           '(,func
-             (lambda ()
-               (with-local-quit
-                 ;; TODO: add timeout here
-                 (while (eq (iclj-tq-queue-head-wait-handler ,tq) t)
-                   (sleep-for 0.01))))))
+            '(,func
+              (lambda ()
+                ;; TODO: add timeout here
+                (while (eq (iclj-tq-queue-head-wait-handler ,tq) t)
+                  (sleep-for 0.01)))))
      ,@body))
 
 (defun iclj-tq--proc-send-input (proc string)
