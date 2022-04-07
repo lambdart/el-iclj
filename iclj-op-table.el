@@ -49,6 +49,11 @@
      (clojure.core/map name))"
   "Return list all of available namespaces.")
 
+(defvar iclj-trace-ns-fmt
+  "(use 'clojure.tools.trace)
+(clojure.tools.trace/trace-ns %s)"
+  "Trace chosen namescape format.")
+
 (defvar iclj-op-all-ns-fmt
   "(clojure.pprint/pprint
      (clojure.core/->>
@@ -60,15 +65,15 @@
 (defvar iclj-op-table
   `((input          . (:fmt "%s"))
     (eval           . (:fmt "%s"))
-    (eval-last-sexp . (:cb iclj-eval-handler :fmt "%s" :waitp t))
+    (eval-last-sexp . (:cb iclj-eval-handler :fmt "%s" :waitp nil))
     (doc            . (:fmt "(clojure.repl/doc %s)"))
     (find-doc       . (:fmt "(clojure.repl/find-doc %S)"))
     (run-tests      . (:fmt "(clojure.test/run-tests)"))
     (eldoc          . (:cb iclj-eldoc-handler :fmt ,iclj-op-eldoc-fmt))
     (apropos        . (:cb iclj-apropos-handler
-                       :fmt "(sort (clojure.repl/apropos %S))"
-                       :buf ""
-                       :waitp t))
+                           :fmt "(sort (clojure.repl/apropos %S))"
+                           :buf ""
+                           :waitp t))
     (source         . (:fmt "(clojure.repl/source %s)"))
 
     (meta           . (:fmt "(clojure.pprint/pprint (clojure.core/meta #'%s))"))
@@ -77,7 +82,8 @@
     (all-ns         . (:fmt ,iclj-op-all-ns-fmt))
     (ns-vars        . (:fmt "(clojure.repl/dir %s)"))
     (ns-list        . (:fmt ,iclj-ns-list-fmt :cb iclj-ns-list-handler :waitp t))
-    (set-ns         . (:fmt "(clojure.core/in-ns '%s)")))
+    (set-ns         . (:fmt "(clojure.core/in-ns '%s)"))
+    (trace-ns       . (:fmt ,iclj-trace-ns-fmt)))
   "Operation associative list: (OP-KEY . (OP-PLIST))
 OP-KEY, the operation key selector.
 OP-PLIST, response handler, operation format string and
