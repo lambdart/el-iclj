@@ -34,7 +34,6 @@
 ;;
 ;;; Code:
 
-;; (require 'gv)
 (require 'iclj-util)
 
 (defvar iclj-tq-proc-eoc-found nil
@@ -171,7 +170,8 @@ to the TQ head."
   "Evaluate BODY forms after TQ handler that will be called by FUNC ends."
   (declare (indent 2)
            (debug t))
-  `(when (iclj-tq-proc-live-p ,tq)
+  `(if (not (iclj-tq-proc-live-p ,tq))
+       (iclj-util-log "error, missing connection!")
      (mapc  #'funcall
             '(,func
               (lambda ()
@@ -212,12 +212,15 @@ to the TQ head."
 
 (defun iclj-tq-queue-pop (tq)
   "Pop TQ queue element."
-  (mapc (lambda (fn) (funcall fn tq))
+  (mapc (lambda (fn)
+          (funcall fn tq))
         `(iclj-tq-queue-head-kill-temp-buffer
           iclj-tq-queue-head-clean-temp-buffer
-          (lambda (tq) (setcar tq (cdr (car tq))))
-          (lambda (tq) (or (iclj-tq-queue-empty-p tq)
-                           (iclj-tq-proc-send-input tq))))))
+          (lambda (tq)
+            (setcar tq (cdr (car tq))))
+          (lambda (tq)
+            (or (iclj-tq-queue-empty-p tq)
+                (iclj-tq-proc-send-input tq))))))
 
 (defun iclj-tq-enqueue (tq
                         input
@@ -271,7 +274,6 @@ to a tcp server on another machine.
 PROCESS-EOC is used to indicate the end of command.
 
 PROMPT-REGEXP the prompt regex, is used to clean the response buffer's content."
-
   (let ((tq `(nil ,process ,process-eoc ,prompt-regexp)))
     (set-process-filter process
                         (lambda (_p s)
