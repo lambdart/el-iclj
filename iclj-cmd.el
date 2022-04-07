@@ -74,32 +74,38 @@
   (interactive (list
                 (iclj-util-read-host)
                 (iclj-util-read-port iclj-util-port)))
-  ;; maybe cache host to be used again
-  (unless (member host iclj-util-host-history)
-    (push host iclj-util-host-history))
-  ;; update host and port, if necessary
-  (cond ((string= host "")
-         (iclj-util-log "error: missing host value!"))
-        ;; default: tries open host/port stream and cache it
-        (t (condition-case err
-               (setq iclj-cmd-tq
-                     (iclj-tq-make (iclj-cmd--network-stream host port)
-                                   iclj-util-eoc
-                                   iclj-cmd-prompt-regexp))
-             ;; handle errors
-             (error (iclj-util-log (concat "error: " (cadr err))))
-             ;; handle success
-             (:success (iclj-util-log "success: TQ connected!")))))
-  ;; cache transmission queue
-  (setq iclj-cmd-tq-cache iclj-cmd-tq))
+  ;; cache transmission queue (structure) values
+  (setq iclj-cmd-tq-cache
+        (progn
+          ;; maybe cache host to be used again
+          (unless (member host iclj-util-host-history)
+            (push host iclj-util-host-history))
+          (cond ((string= host "")
+                 (iclj-util-log "error: missing host value!"))
+                ;; default: tries open host/port stream and cache it
+                (t (condition-case err
+                       (setq iclj-cmd-tq
+                             (iclj-tq-make (iclj-cmd--network-stream host port)
+                                           iclj-util-eoc
+                                           iclj-cmd-prompt-regexp))
+                     ;; handle errors
+                     (error (iclj-util-log (concat "error: " (cadr err))))
+                     ;; handle success
+                     (:success (iclj-util-log "success: TQ connected!")))))
+          ;; return transmission queue to cache it
+          iclj-cmd-tq)))
 
 (defun iclj-disconnect ()
   "Disconnect from transmission queue."
   (interactive)
-  ;; erase if necessary
-  (setq iclj-cmd-tq (and iclj-cmd-tq (iclj-tq-proc-delete iclj-cmd-tq)))
-  ;; just a hint to the user
-  (iclj-util-log "TQ disconnected!" t))
+  (setq iclj-cmd-tq
+        (prog1
+            ;; erase if necessary
+            (and iclj-cmd-tq (iclj-tq-proc-delete iclj-cmd-tq))
+          ;; clean cache
+          (setq iclj-cmd-tq-cache nil)
+          ;; just a hint to the user
+          (iclj-util-log "TQ disconnected!" t))))
 
 (defun iclj-restart-connection ()
   "Restart transmission queue."
@@ -306,6 +312,17 @@ INPUT, the string or the region bounds."
                    t
                    (iclj-ns-read-namespace))))
 
+(defun iclj-trace-ns ()
+  "Trace chosen namespace."
+  (interactive)
+  (iclj-tq-eval-after-handler
+      iclj-cmd-tq
+      iclj-cmd--send-ns-list
+    (iclj-cmd-send 'trace-ns
+                   nil
+                   t
+                   (iclj-ns-read-namespace))))
+
 (defun iclj-source (input)
   "Show source from symbol INPUT."
   (interactive (iclj-util-minibuffer-read nil "Symbol"))
@@ -333,6 +350,7 @@ INPUT, the string or the region bounds."
                  nil
                  nil
                  (iclj-util-sexp-at-point)))
+
 
 (provide 'iclj-cmd)
 
