@@ -65,10 +65,7 @@ If FORCE is non-nill always force the message STRING."
 
 (defun iclj-util-read-port (&optional default-port)
   "Read port, when DEFAULT-PORT is non-nil suggest it."
-  (read-string (format (if default-port
-                           "Port[%s]: "
-                         "Port: %s")
-                       (or default-port ""))
+  (read-string (format-prompt "Port" default-port)
                nil
                nil
                default-port))
@@ -76,10 +73,7 @@ If FORCE is non-nill always force the message STRING."
 (defun iclj-util-read-host ()
   "Read host and port."
   (let ((default-host (car-safe iclj-util-host-history)))
-    (read-string (format (if default-host
-                             "Host[%s]: "
-                           "Host: %s")
-                         (or default-host ""))
+    (read-string (format-prompt "Host" default-host)
                  nil
                  'iclj-util-host-history
                  default-host)))
