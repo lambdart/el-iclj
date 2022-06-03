@@ -103,12 +103,15 @@ Buffer: process output buffer."
 
 (defun iclj-tq-call-handler (tq)
   "Call TQ function handler."
-  (progn
-    (funcall (iclj-tq-queue-head-handler tq)
-             (iclj-tq-queue-head-temp-buffer tq)
-             (iclj-tq-queue-head-orig-buffer tq))
-    ;; handler ends indicator
-    (setcdr (cdr (cdddar (iclj-tq-queue tq))) nil)))
+  (mapc (lambda (fn)
+          (funcall fn tq))
+        `((lambda (tq)
+            (funcall (iclj-tq-queue-head-handler tq)
+                     (iclj-tq-queue-head-temp-buffer tq)
+                     (iclj-tq-queue-head-orig-buffer tq)))
+          (lambda (tq)
+            ;; change callback (handler function) ends indicator (state)
+            (setcdr (cdr (cdddar (iclj-tq-queue tq))) nil)))))
 
 (defun iclj-tq-proc-filter (tq string)
   "Cache TQ output STRING."
@@ -151,12 +154,13 @@ to the TQ head."
 
 (defun iclj-tq-wait--proc-loop (tq)
   "Wait TQ process output loop."
-  ;; TODO: add timeout here (maybe local-quit)
-  (let ((proc (iclj-tq-proc tq)))
-    (and (process-live-p proc)
-         (while (and (null iclj-tq-proc-eoc-found)
-                     (accept-process-output proc 1 0 t))
-           (sleep-for 0.01)))))
+  (with-local-quit
+    (let ((proc (iclj-tq-proc tq)))
+      (and (process-live-p proc)
+           ;; TODO: add timeout here
+           (while (and (null iclj-tq-proc-eoc-found)
+                       (accept-process-output proc 1 0 t))
+             (sleep-for 0.01))))))
 
 (defmacro iclj-tq-wait-proc-output (tq &rest body)
   "Evaluate BODY forms and force waiting for TQ process output confirmation."
@@ -180,6 +184,7 @@ to the TQ head."
                   (sleep-for 0.01)))))
      ,@body))
 
+;; TODO: revise this function
 (defun iclj-tq--proc-send-input (proc string)
   "Send STRING to PROC stream."
   (if (not (process-live-p proc))
@@ -201,6 +206,7 @@ to the TQ head."
 
 (defun iclj-tq-queue-head-kill-temp-buffer (tq)
   "Kill temporary output buffer if TQ queue head waitp is non-nil."
+  ;;nil)
   (when (iclj-tq-queue-head-waitp tq)
     (kill-buffer (iclj-tq-queue-head-temp-buffer tq))))
 
