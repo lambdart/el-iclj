@@ -130,29 +130,27 @@ thing means."
      (point))
    (point)))
 
-(defun iclj-util--last-line (buffer regexp)
-  "Return the BUFFER last line determined by REGEXP pattern."
+(defun iclj-util--last-line (buffer)
+  "Return the BUFFER last line before the end of command indicator."
   (with-current-buffer buffer
     (save-excursion
       (widen)
       (buffer-substring-no-properties
        (progn
          (goto-char (point-max))
-         (forward-line -1)
-         (while (and (> (point) (point-min))
-                     (not (looking-at-p regexp)))
-           (forward-line -1))
-         (forward-line -1)
+         ;; our end of command (iclj-util-eoc) indicator has tree lines
+         (forward-line -4)
+         ;; first line point
          (point))
        (progn
          (end-of-line)
          (point))))))
 
-(defun iclj-util-last-line (buffer regexp &optional default)
+(defun iclj-util-last-line (buffer &optional default)
   "Return the BUFFER last line determined by REGEXP pattern.
 DEFAULT, value to be returned if the last-line isn't found."
   (if (buffer-live-p buffer)
-      (iclj-util--last-line buffer regexp)
+      (iclj-util--last-line buffer)
     (or default "nil")))
 
 (defun iclj-util-delete-regexp (buffer regexp)
