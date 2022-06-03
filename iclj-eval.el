@@ -42,9 +42,7 @@
 Overlay is the front end of choice."
   (iclj-overlay-display source-buffer
                         (concat " => "
-                                (iclj-util-last-line output-buffer
-                                                     iclj-util-eoc
-                                                     "nil"))))
+                                (iclj-util-last-line output-buffer "nil"))))
 
 (provide 'iclj-eval)
 
