@@ -126,11 +126,11 @@
 (defun iclj--parse-input (input cmd-fmt)
   "Format INPUT (string or region) with CMD-FMT (command format)."
   (iclj--format-append-eoc
-   (format cmd-fmt
-           (let ((temp (car input)))
-             (if (not (stringp temp))
-                 (apply 'buffer-substring-no-properties input)
-               temp)))))
+   (apply 'format
+          (append `(,cmd-fmt
+                    ,@(if (not (stringp (car input)))
+                          (list (apply 'buffer-substring-no-properties input))
+                        input))))))
 
 (defun iclj--ensure-connection ()
   "Return cached transmission queue or create the connection."
@@ -190,7 +190,7 @@ INPUT, the string or the region bounds."
   ;; send region of the last expression
   (iclj-cmd-send 'eval-last-sexp
                  nil
-                 nil
+                 t
                  (save-excursion
                    (backward-sexp)
                    (point))
@@ -322,6 +322,15 @@ INPUT, the string or the region bounds."
                    nil
                    t
                    (iclj-ns-read-namespace))))
+
+(defun iclj-trace-fn (fn)
+  "Trace chosen FN."
+  (interactive "sFN: ")
+  (iclj-cmd-send 'trace-fn
+                 nil
+                 nil
+                 fn
+                 fn))
 
 (defun iclj-source (input)
   "Show source from symbol INPUT."
