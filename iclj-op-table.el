@@ -67,32 +67,28 @@
        (clojure.core/map name)))"
   "List all available namespaces.")
 
-;; TODO replace this
-;; command format : cf
-;; callback func  : cb
-;; wait predicate : wp
 (defvar iclj-op-table
-  `((input          . (:fmt "%s"))
-    (eval           . (:fmt "%s"))
-    (eval-last-sexp . (:cb iclj-eval-handler :fmt "%s" :waitp t))
-    (doc            . (:fmt "(clojure.repl/doc %s)"))
-    (find-doc       . (:fmt "(clojure.repl/find-doc %S)"))
-    (run-tests      . (:fmt "(clojure.test/run-tests)"))
-    (eldoc          . (:cb iclj-eldoc-handler :fmt ,iclj-op-eldoc-fmt))
+  `((input          . (:cf "%s"))
+    (eval           . (:cf "%s"))
+    (eval-last-sexp . (:cb iclj-eval-handler :cf "%s" :wp t))
+    (doc            . (:cf "(clojure.repl/doc %s)"))
+    (find-doc       . (:cf "(clojure.repl/find-doc %S)"))
+    (run-tests      . (:cf "(clojure.test/run-tests)"))
+    (eldoc          . (:cb iclj-eldoc-handler :cf ,iclj-op-eldoc-fmt))
     (apropos        . (:cb iclj-apropos-handler
-                       :fmt "(sort (clojure.repl/apropos %S))"
-                       :waitp t))
-    (source         . (:fmt "(clojure.repl/source %s)"))
+                       :cf "(sort (clojure.repl/apropos %S))"
+                       :wp t))
+    (source         . (:cf "(clojure.repl/source %s)"))
 
-    (meta           . (:fmt "(clojure.pprint/pprint (clojure.core/meta #'%s))"))
-    (macroexpand    . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand '%s))"))
-    (macroexpand-1  . (:fmt "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))"))
-    (all-ns         . (:fmt ,iclj-op-all-ns-fmt))
-    (ns-vars        . (:fmt "(clojure.repl/dir %s)"))
-    (ns-list        . (:fmt ,iclj-ns-list-fmt :cb iclj-ns-list-handler :waitp t))
-    (set-ns         . (:fmt "(clojure.core/in-ns '%s)"))
-    (trace-ns       . (:fmt ,iclj-trace-ns-fmt))
-    (trace-fn       . (:fmt ,iclj-trace-fn-fmt)))
+    (meta           . (:cf "(clojure.pprint/pprint (clojure.core/meta #'%s))"))
+    (macroexpand    . (:cf "(clojure.pprint/pprint (clojure.core/macroexpand '%s))"))
+    (macroexpand-1  . (:cf "(clojure.pprint/pprint (clojure.core/macroexpand-1 '%s))"))
+    (all-ns         . (:cf ,iclj-op-all-ns-fmt))
+    (ns-vars        . (:cf "(clojure.repl/dir %s)"))
+    (ns-list        . (:cf ,iclj-ns-list-fmt :cb iclj-ns-list-handler :wp t))
+    (set-ns         . (:cf "(clojure.core/in-ns '%s)"))
+    (trace-ns       . (:cf ,iclj-trace-ns-fmt))
+    (trace-fn       . (:cf ,iclj-trace-fn-fmt)))
   "Operation associative list: (OP-KEY . (OP-PLIST))
 OP-KEY, the operation key selector.
 OP-PLIST, response handler, operation format string and
@@ -105,7 +101,7 @@ dedicated output buffer.")
 (defun iclj-op-table-get-property (op-key property)
   "Get property list element from the operation table.
 OP-KEY, operation key property list selector.
-PROPERTY, possible values are: :cb, :fmt and :buf."
+PROPERTY, possible values are: :cb, and :cf."
   (plist-get (iclj-op-table-get-plist op-key) property))
 
 (provide 'iclj-op-table)
