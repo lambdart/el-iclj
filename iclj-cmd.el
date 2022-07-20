@@ -157,9 +157,9 @@ INPUT, the string or the region bounds."
         (iclj-tq-enqueue iclj-cmd-tq
                          ;; parsed command plus input
                          (iclj--parse-input input
-                                            (plist-get op-plist :fmt))
+                                            (plist-get op-plist :cf))
                          ;; wait predicate
-                         (or waitp (plist-get op-plist :waitp))
+                         (or waitp (plist-get op-plist :wp))
                          ;; callback handler
                          (or handler
                              (plist-get op-plist :cb)
@@ -250,7 +250,7 @@ INPUT, the string or the region bounds."
 (defun iclj-run-tests ()
   "Invoke Clojure (run-tests) operation."
   (interactive)
-  ;; send run test command
+  (call-interactively 'iclj-set-ns)
   (iclj-cmd-send 'run-tests nil nil ""))
 
 (defun iclj-load-tests-and-run (filename)
@@ -325,7 +325,7 @@ INPUT, the string or the region bounds."
 
 (defun iclj-trace-fn (fn)
   "Trace chosen FN."
-  (interactive "sFN: ")
+  (interactive "sFunc: ")
   (iclj-cmd-send 'trace-fn
                  nil
                  nil
@@ -360,6 +360,16 @@ INPUT, the string or the region bounds."
                  nil
                  (iclj-util-sexp-at-point)))
 
+
+(defun iclj-kill-all-buffers ()
+  "Kill all *iclj-proc-output* temporary BUFFERS."
+  (interactive)
+  (mapc (lambda (buffer)
+          (when (string-match-p
+                 "\\*iclj-proc-output\\*.*$"
+                 (buffer-name buffer))
+            (kill-buffer buffer)))
+        (buffer-list)))
 
 (provide 'iclj-cmd)
 
