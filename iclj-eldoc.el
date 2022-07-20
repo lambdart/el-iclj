@@ -101,14 +101,11 @@ Parse the documentation string and its META-DATA,
 using the CALLBACK function."
   (when-let* ((fnsym (car-safe meta-data))
               (args (cadr meta-data))
-              (docstring (concat args
-                                 " "
-                                 (iclj-eldoc-docstring (caddr meta-data)))))
+              (docstring (caddr meta-data)))
     (funcall iclj-eldoc-callback
-             docstring
+             (concat args " " (iclj-eldoc-docstring docstring))
              :thing fnsym
              :face font-lock-function-name-face)))
-
 
 (defun iclj-eldoc-cmd-send (input)
   "Invoke \\{iclj-eldoc} operation.
