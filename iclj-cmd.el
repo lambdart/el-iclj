@@ -360,16 +360,21 @@ INPUT, the string or the region bounds."
                  nil
                  (iclj-util-sexp-at-point)))
 
-
-(defun iclj-kill-all-buffers ()
-  "Kill all *iclj-proc-output* temporary BUFFERS."
+(defun iclj-kill-output-buffers ()
+  "Kill temporary output buffers."
   (interactive)
-  (mapc (lambda (buffer)
-          (when (string-match-p
-                 "\\*iclj-proc-output\\*.*$"
-                 (buffer-name buffer))
-            (kill-buffer buffer)))
-        (buffer-list)))
+  (let ((counter 0))
+    (mapc (lambda (buffer)
+            (when (string-match-p
+                   iclj-util-obn-regex
+                   (buffer-name buffer))
+              (setq counter (progn
+                              (kill-buffer buffer)
+                              (1+ counter)))))
+          (buffer-list))
+    ;; show message
+    (and (> counter 0)
+         (message iclj-util-km-fmt counter))))
 
 (provide 'iclj-cmd)
 

@@ -44,6 +44,13 @@
 (defvar iclj-util-eoc "\n--ICLJ-EOC-INDICATOR--\n"
   "Default end of command indicator.")
 
+(defvar iclj-util-obn-regex "\\*iclj-proc-output\\*.*$"
+  "Default proc output buffer regex.")
+
+(defvar iclj-util-km-fmt
+  "[ICLJ]: %d buffers were killed!"
+  "Default kill message format.")
+
 (defmacro iclj-util-log (string &rest body)
   "Message STRING and execute BODY forms.
 Return the value of last evaluated form."
