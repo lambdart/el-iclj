@@ -54,8 +54,12 @@
             ("C-c C-r" iclj-eval-region)
             ("C-c C-c" iclj-eval-buffer)
             ("C-c C-d" iclj-doc)
+            ("C-c k"   iclj-kill-all-buffers)
+            ("C-c C-k" iclj-kill-all-buffers)
             ("C-c C-f" iclj-find-doc)
             ("C-c C-t" iclj-run-tests)
+            ("<f5>"    iclj-run-tests)
+            ("<f6>"    iclj-load-tests-and-run)
             ("C-c C-a" iclj-apropos)
             ("C-c C-l" iclj-load-file)
             ("C-c C-b" iclj-eval-target-buffer)
@@ -121,7 +125,7 @@ The following commands are available:
   (iclj-mode-setup
    (if iclj-mode
        '(iclj-define-menu
-         iclj-eldoc-enable
+         iclj-eldoc-disable
          iclj-overlay-enable)
      '(iclj-eldoc-disable
        iclj-overlay-disable))))
