@@ -152,22 +152,21 @@ handler.
 
 INPUT, the string or the region bounds."
   (when (iclj--ensure-connection)
-    (let ((op-plist (iclj-op-table-get-plist op-key)))
-      (when op-plist
-        (iclj-tq-enqueue iclj-cmd-tq
-                         ;; parsed command plus input
-                         (iclj--parse-input input
-                                            (plist-get op-plist :cf))
-                         ;; wait predicate
-                         (or waitp (plist-get op-plist :wp))
-                         ;; callback handler
-                         (or handler
-                             (plist-get op-plist :cb)
-                             'iclj--default-handler)
-                         ;; source buffer
-                         (current-buffer)
-                         ;; delay flag
-                         t)))))
+    (iclj-tq-enqueue iclj-cmd-tq
+                     ;; parsed command plus input
+                     (iclj--parse-input input
+                                        (iclj-op-table-get-property op-key
+                                                                    :cf))
+                     ;; wait predicate
+                     (or waitp (iclj-op-table-get-property op-key :wp))
+                     ;; callback handler
+                     (or handler
+                         (iclj-op-table-get-property op-key :cb)
+                         'iclj--default-handler)
+                     ;; source buffer
+                     (current-buffer)
+                     ;; delay flag
+                     t)))
 
 (defun iclj-eval-defn ()
   "Send definition to the Clojure comint process."
@@ -281,7 +280,7 @@ INPUT, the string or the region bounds."
   ;; send apropos command
   (iclj-cmd-send 'apropos nil nil input))
 
-(defun iclj-all-ns ()
+(defun iclj-list-ns ()
   "Pretty print all name spaces."
   (interactive)
   (iclj-cmd-send 'all-ns nil nil ""))
@@ -290,7 +289,7 @@ INPUT, the string or the region bounds."
   "Cache namespace list."
   (iclj-cmd-send 'ns-list nil t ""))
 
-(defun iclj-ns-vars ()
+(defun iclj-list-ns-vars ()
   "List namespace symbols."
   (interactive)
   (iclj-tq-eval-after-handler
