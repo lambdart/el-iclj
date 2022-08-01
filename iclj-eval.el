@@ -40,9 +40,10 @@
 (defun iclj-eval-handler (output-buffer source-buffer)
   "Get last line from OUTPUT-BUFFER and display it in the SOURCE-BUFFER.
 Overlay is the front end of choice."
-  (iclj-overlay-display source-buffer
-                        (concat " => "
-                                (iclj-util-last-line output-buffer "nil"))))
+  (let ((output (iclj-util-last-line output-buffer "nil")))
+    (iclj-util-log output
+        (iclj-overlay-display source-buffer
+                              (concat " => " output)))))
 
 (provide 'iclj-eval)
 
