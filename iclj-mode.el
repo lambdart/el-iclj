@@ -125,7 +125,7 @@ The following commands are available:
   (iclj-mode-setup
    (if iclj-mode
        '(iclj-define-menu
-         iclj-eldoc-disable
+         iclj-eldoc-enable
          iclj-overlay-enable)
      '(iclj-eldoc-disable
        iclj-overlay-disable))))
