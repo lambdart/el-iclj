@@ -85,15 +85,11 @@ Return the number of nested sexp the point was over or after."
       ;; to return the symbol at point otherwise
       (if (member (or (char-after (1- (point))) 0) '(?\" ?\{ ?\[))
           "" ;; return empty string
-        (or (thing-at-point 'symbol) "")))))
+        (or (thing-at-point 'symbol t) "")))))
 
 (defun iclj-eldoc-docstring (string)
   "Return format documentation STRING."
-  (replace-regexp-in-string "\s+"
-                            " "
-                            (replace-regexp-in-string "[\t\n\r]+"
-                                                      ""
-                                                      string)))
+  (string-trim (replace-regexp-in-string "[\t\n\r]" "" string)))
 
 (defun iclj-eldoc-display-docstring (meta-data)
   "Display eldoc documentation string.
@@ -133,7 +129,7 @@ about the context around point."
             ;; always cache thing will be used in next interaction
             thing)))
   ;; the hook function should return a non-nil, non-string
-  t)
+  0)
 
 (defun iclj-eldoc-handler (output-buffer _)
   "Handler Eldoc OUTPUT-BUFFER to print/display the documentation."
