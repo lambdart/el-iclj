@@ -110,9 +110,8 @@
 (defun iclj-restart-connection ()
   "Restart transmission queue."
   (interactive)
-  (setq iclj-cmd-tq
-        (or iclj-cmd-tq-cache
-            (call-interactively 'iclj-connect))))
+  (setq iclj-cmd-tq nil)
+  (call-interactively 'iclj-connect))
 
 (defun iclj--default-handler (output-buffer &optional _)
   "Switch to OUTPUT-BUFFER (the process output buffer)."
