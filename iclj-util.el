@@ -129,6 +129,12 @@ thing means."
      (or (car-safe bounds) (point))
      (or (cdr-safe bounds) (point)))))
 
+(defun iclj-util-split-thing-at-point (&optional thing)
+  "Return THING at point and split it.
+See the documentation of `thing-at-point' to understand what
+thing means."
+  (split-string (iclj-util-thing-at-point) "/" t t))
+
 (defun iclj-util-sexp-at-point ()
   "Return symbolic expression at point."
   (buffer-substring-no-properties
