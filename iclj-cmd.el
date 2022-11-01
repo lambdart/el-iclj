@@ -113,10 +113,16 @@
   (setq iclj-cmd-tq nil)
   (call-interactively 'iclj-connect))
 
+(defun iclj-cmd-pop ()
+  "Pop queue."
+  (interactive)
+  (iclj-tq-queue-pop iclj-cmd-tq))
+
 (defun iclj--default-handler (output-buffer &optional _)
   "Switch to OUTPUT-BUFFER (the process output buffer)."
   (save-excursion
-    (display-buffer output-buffer)))
+    (and (buffer-live-p output-buffer)
+         (display-buffer output-buffer))))
 
 (defun iclj--format-append-eoc (cmd)
   "Return CMD with end of command indicator."
@@ -261,11 +267,14 @@ INPUT, the string or the region bounds."
   ;; run the tests after "load"
   (iclj-cmd-send 'run-tests nil nil ""))
 
-(defun iclj-doc (input)
-  "Describe identifier INPUT."
-  (interactive (iclj-util-minibuffer-read 'sexp "Doc"))
-  ;; send documentation operation
-  (iclj-cmd-send 'doc nil nil input))
+(defun iclj-doc ()
+  "Describe identifier input."
+  ;; (interactive (iclj-util-minibuffer-read 'sexp "Doc"))
+  (interactive)
+  (iclj-cmd-send 'doc
+                 nil
+                 nil
+                 (completing-read "Doc: " iclj-completions)))
 
 (defun iclj-find-doc (input)
   "Find INPUT documentation ."
