@@ -184,11 +184,11 @@ to the TQ head."
                   (sleep-for 0.01)))))
      ,@body))
 
-;; TODO: revise this function
 (defun iclj-tq--proc-send-input (proc string)
   "Send STRING to PROC stream."
   (if (not (process-live-p proc))
-      (prog1 nil (iclj-tq-proc-delete proc))
+      (iclj-tq-proc-delete proc)
+    ;; return true
     (prog1 t
       ;; reset eoc indicator variable
       (setq iclj-tq-proc-eoc-found nil)
@@ -219,7 +219,7 @@ to the TQ head."
 (defun iclj-tq-queue-pop (tq)
   "Pop TQ queue element."
   (mapc (lambda (fn)
-          (funcall fn tq))
+          (and tq (funcall fn tq)))
         `(iclj-tq-queue-head-kill-temp-buffer
           iclj-tq-queue-head-clean-temp-buffer
           (lambda (tq)
@@ -267,8 +267,9 @@ This produces more reliable results with some processes."
 (defun iclj-tq-proc-delete (tq)
   "Shut down transaction queue TQ terminating the process.
 This function always returns nil."
-  (iclj-util-with-log "process deleted" t
-    (delete-process (iclj-tq-proc tq))))
+  (prog1 nil
+    (iclj-util-with-log "process deleted" t
+      (delete-process (iclj-tq-proc tq)))))
 
 (defun iclj-tq-make (process process-eoc &optional prompt-regexp)
   "Set PROCESS filter and return the transaction queue.
@@ -282,7 +283,7 @@ PROCESS-EOC is used to indicate the end of command.
 PROMPT-REGEXP the prompt regex, is used to clean the response buffer's content."
   (let ((tq `(nil ,process ,process-eoc ,prompt-regexp)))
     (set-process-filter process
-                        (lambda (_p s)
+                        (lambda (_ s)
                           (iclj-tq-proc-filter tq s)))
     tq))
 
