@@ -34,10 +34,10 @@
 ;;
 ;;; Code:
 
+(require 'iclj-tq)
+(require 'iclj-cmd)
 (require 'iclj-util)
 (require 'iclj-apropos)
-(require 'iclj-cmd)
-(require 'iclj-tq)
 
 (defvar iclj-completions '())
 (defvar iclj-completion-thing nil)
@@ -66,18 +66,20 @@
            `(apropos
              iclj-completion-handler
              t
-             ,@(let ((bounds (iclj-util-bounds-of-thing-at-point)))
-                 (list (car-safe bounds)
-                       (cdr-safe bounds)))))))
+             ""))))
 
-
-(defun iclj-completion-completions (&rest _)
+(defun iclj-completion-all-completions ()
   "Return list of completions."
-  (iclj-tq-eval-after-handler
-      iclj-cmd-tq
-      iclj-completion-send-cmd
-    iclj-completions))
+  (interactive)
+  (iclj-tq-with-live-process iclj-cmd-tq
+    (iclj-tq-eval-after-handler
+        iclj-cmd-tq
+        iclj-completion-send-cmd
+      iclj-completions)))
+
+(defun iclj-completion-completions (_input)
+  "Return list of completions."
+  iclj-completions)
 
 (provide 'iclj-completion)
-
 ;;; iclj-completion.el ends here
