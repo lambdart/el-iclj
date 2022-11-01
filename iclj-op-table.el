@@ -54,6 +54,11 @@
 (clojure.tools.trace/trace-ns '%s)"
   "Trace chosen namescape format.")
 
+(defvar iclj-trace-vs-fmt
+  "(use 'clojure.tools.trace)
+(clojure.tools.trace/trace-vars '%s)"
+  "Trace chosen namescape vars format.")
+
 (defvar iclj-trace-fn-fmt
   "(use 'clojure.tools.trace)
 (clojure.tools.trace/trace-fn-call '%s %s ())"
@@ -88,6 +93,7 @@
     (ns-list        . (:cf ,iclj-ns-list-fmt :cb iclj-ns-list-handler :wp t))
     (set-ns         . (:cf "(clojure.core/in-ns '%s)"))
     (trace-ns       . (:cf ,iclj-trace-ns-fmt))
+    (trace-vs       . (:cf ,iclj-trace-vs-fmt))
     (trace-fn       . (:cf ,iclj-trace-fn-fmt)))
   "Operation associative list: (OP-KEY . (OP-PLIST))
 OP-KEY, the operation key selector.
